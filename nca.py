@@ -12,16 +12,16 @@ class NCA(th.nn.Module):
 
     def encode(self, grid: th.LongTensor) -> th.FloatTensor:
         '''
-            Converts ARC grid (2D tensor of values 0-9) into model-readable format ((10 + hidden channels) x H x W).
+            Converts ARC grid (2D tensor of values 0-9) into model-readable format (1 x (10 + hidden channels) x H x W).
         '''
         one_hot_grid = th.nn.functional.one_hot(grid, num_classes=10).to(self.device)
         hidden_channels = th.zeros(grid.shape[0], grid.shape[1], self.n_hidden_channels).to(self.device)
         encoded_grid = th.cat((one_hot_grid, hidden_channels), dim=2)
-        return encoded_grid.permute(2, 0, 1)
+        return encoded_grid.permute(2, 0, 1).unsqueeze(0)
 
     def decode(self, grid: th.FloatTensor) -> th.LongTensor:
         '''
-            Converts an intermediary grid back into ARC format.
+            Converts an intermediary grid back into ARC format (H x W).
         '''
-        color_channels = grid.permute(1, 2, 0)[:, :, :10]
+        color_channels = grid.permute(0, 2, 3, 1).squeeze()[:, :, :10]
         return th.argmax(color_channels, dim=2)
