@@ -25,7 +25,20 @@ class NCA(th.nn.Module):
         return grid[:, :10].argmax(dim=1)
 
     def forward(self, x: th.FloatTensor) -> th.FloatTensor:
+        '''
+            Single forward pass of rules on a grid, returning the updated state.
+        '''
         y = self.perceive(x)
         y = self.norm(y)
         y = th.nn.functional.relu(y, inplace=False)
         return self.update(y)
+
+    def rollout(self, state: th.FloatTensor, steps: int) -> list[th.FloatTensor]:
+        '''
+            Applies 'steps' forward passes to the input and returns all the intermediate states
+        '''
+        states = [state]
+        for _ in range(steps):
+            state = self.forward(state)
+            states.append(state)
+        return states
