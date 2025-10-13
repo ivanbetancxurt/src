@@ -27,4 +27,5 @@ class NCA(th.nn.Module):
     def forward(self, x: th.FloatTensor) -> th.FloatTensor:
         y = self.perceive(x)
         y = self.norm(y)
+        y = th.nn.functional.relu(y, inplace=False)
         return self.update(y)
