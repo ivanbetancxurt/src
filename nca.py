@@ -1,6 +1,4 @@
-from pandas.core.generic import dt
 import torch as th
-from torch._subclasses.fake_impls import dyn_shape
 
 class NCA(th.nn.Module):
     def __init__(self, n_hidden_channels: int = 20,) -> None:
@@ -11,14 +9,14 @@ class NCA(th.nn.Module):
         self.norm = th.nn.GroupNorm(num_groups=1, num_channels=64) #! hard-coded output channels
         self.update = th.nn.Conv2d(in_channels=64, out_channels=self.n_channels, kernel_size=1) #! hard-coded input channels
 
-    def encode(self, grid: th.LongTensor) -> th.FloatTensor:
+    def encode(self, grids: th.LongTensor) -> th.FloatTensor:
         '''
-            Converts ARC grid (2D tensor of values 0-9) into model-readable format (N x (10 + hidden channels) x H x W).
+            Converts ARC grids (2D tensors of values 0-9) into model-readable format (N x (10 + hidden channels) x H x W).
         '''
-        one_hot_grid = th.nn.functional.one_hot(grid, num_classes=10).float()
-        hidden_channels = th.zeros(grid.shape[0], grid.shape[1], self.n_hidden_channels, device=grid.device)
-        encoded_grid = th.cat((one_hot_grid, hidden_channels), dim=2)
-        return encoded_grid.permute(2, 0, 1).unsqueeze(0)
+        one_hot_grids = th.nn.functional.one_hot(grids, num_classes=10).float()
+        hidden_channels = th.zeros(grids.shape[0], grids.shape[1], grids.shape[2], self.n_hidden_channels, device=grids.device)
+        encoded_grid = th.cat((one_hot_grids, hidden_channels), dim=3)
+        return encoded_grid.permute(0, 3, 1, 2)
 
     def decode(self, grid: th.FloatTensor) -> th.LongTensor:
         '''
