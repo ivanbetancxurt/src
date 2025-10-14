@@ -1,4 +1,6 @@
+from pandas.core.generic import dt
 import torch as th
+from torch._subclasses.fake_impls import dyn_shape
 
 class NCA(th.nn.Module):
     def __init__(self, n_hidden_channels: int = 20,) -> None:
@@ -42,3 +44,15 @@ class NCA(th.nn.Module):
             state = self.forward(state)
             states.append(state)
         return states
+
+    def per_pixel_log_loss(self, states: list[th.FloatTensor], target: th.LongTensor) -> (th.FloatTensor, float):
+        '''
+            Compute CE loss per step and overall average.
+        '''
+        step_losses = []
+        for state in states[1:]:
+            logits = state[:, :10]
+            step_losses.append(th.nn.functional.cross_entropy(input=logits, target=target))
+
+        step_losses = th.tensor(step_losses, dtype=th.float)
+        return (step_losses, step_losses.mean())
