@@ -15,8 +15,8 @@ class NCA(th.nn.Module):
         '''
         one_hot_grids = th.nn.functional.one_hot(grids, num_classes=10).float()
         hidden_channels = th.zeros(grids.shape[0], grids.shape[1], grids.shape[2], self.n_hidden_channels, device=grids.device)
-        encoded_grid = th.cat((one_hot_grids, hidden_channels), dim=3)
-        return encoded_grid.permute(0, 3, 1, 2)
+        encoded_grids = th.cat((one_hot_grids, hidden_channels), dim=3)
+        return encoded_grids.permute(0, 3, 1, 2)
 
     def decode(self, grid: th.FloatTensor) -> th.LongTensor:
         '''
@@ -26,7 +26,7 @@ class NCA(th.nn.Module):
 
     def forward(self, x: th.FloatTensor) -> th.FloatTensor:
         '''
-            Single forward pass of rules on a grid, returning the updated state.
+            Single forward pass of rules on a batch of grids, returning the updated states.
         '''
         y = self.perceive(x)
         y = self.norm(y)
@@ -35,7 +35,7 @@ class NCA(th.nn.Module):
 
     def rollout(self, state: th.FloatTensor, steps: int) -> list[th.FloatTensor]:
         '''
-            Applies 'steps' forward passes to the input and returns all the intermediate states
+            Applies 'steps' forward passes to the inputs and returns all the intermediate states
         '''
         states = [state]
         for _ in range(steps):
@@ -52,5 +52,37 @@ class NCA(th.nn.Module):
             logits = state[:, :10]
             step_losses.append(th.nn.functional.cross_entropy(input=logits, target=target))
 
-        step_losses = th.tensor(step_losses, dtype=th.float)
+        step_losses = th.stack(step_losses)
         return (step_losses, step_losses.mean())
+
+    def train_identity(self, epochs: int = 10, learning_rate: float = 1e-3, steps_per_batch: int = 10):
+        '''
+            Train model on the identity task.
+        '''
+        grids = th.randint(0, 10, size=(10000, 10, 10))
+        grids = th.reshape(grids, shape=(200, 50, 10, 10))
+
+        optimizer = th.optim.Adam(self.parameters(), lr=learning_rate)
+
+        for epoch in range(epochs):
+            for batch in grids:
+                targets = batch
+                batch = self.encode(batch)
+                states = self.rollout(batch, steps=steps_per_batch)
+                _, avg_loss = self.per_pixel_log_loss(states, targets)
+
+                optimizer.zero_grad(set_to_none=True)
+                avg_loss.backward()
+                optimizer.step()
+
+            with th.no_grad():
+                init_preds = self.decode(states[0])
+                init_acc = (init_preds == targets).float().mean().item()
+
+                mid_preds = self.decode(states[len(states) // 2])
+                mid_acc = (mid_preds == targets).float().mean().item()
+
+                final_preds = self.decode(states[-1])
+                final_acc = (final_preds == targets).float().mean().item()
+
+            print(f'Epoch {epoch + 1}: loss={avg_loss.item():.4f} init_acc={init_acc:.3f} mid_acc={mid_acc:.3f} acc={final_acc:.3f}')
