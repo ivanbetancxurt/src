@@ -33,14 +33,26 @@ class NCA(th.nn.Module):
         y = th.nn.functional.relu(y, inplace=False)
         return self.update(y)
 
-    def rollout(self, state: th.FloatTensor, steps: int) -> list[th.FloatTensor]:
+    def async_update(self, prev_state: th.FloatTensor, proposed_state: th.FloatTensor, mask_prob):
         '''
-            Applies 'steps' forward passes to the inputs and returns all the intermediate states
+            Mask the new state, with probability mask_prob, by interpolating its cells with the those of the previous state by a random stength.
+        '''
+        mask = th.rand_like(prev_state[:, :1, :, :]) < mask_prob
+        strengths = th.rand_like(prev_state[:, :1, :, :])
+        M = mask.float() * strengths
+        return ((1 - M) * proposed_state) + (M * prev_state)
+
+    def rollout(self, state: th.FloatTensor, steps: int, mask_prob_low: float = 0.0, mask_prob_high: float = 0.75) -> list[th.FloatTensor]:
+        '''
+            Applies 'steps' forward passes to the inputs and returns all the intermediate states.
         '''
         states = [state]
+        mask_prob = th.distributions.Uniform(mask_prob_low, mask_prob_high).sample().item()
+
         for _ in range(steps):
-            state = self.forward(state)
-            states.append(state)
+            proposed_state = self.forward(state)
+            res_state = self.async_update(prev_state=state, proposed_state=proposed_state, mask_prob=mask_prob)
+            states.append(res_state)
         return states
 
     def per_pixel_log_loss(self, states: list[th.FloatTensor], target: th.LongTensor) -> (th.FloatTensor, float):
@@ -76,13 +88,9 @@ class NCA(th.nn.Module):
                 optimizer.step()
 
             with th.no_grad():
-                init_preds = self.decode(states[0])
-                init_acc = (init_preds == targets).float().mean().item()
-
-                mid_preds = self.decode(states[len(states) // 2])
-                mid_acc = (mid_preds == targets).float().mean().item()
-
-                final_preds = self.decode(states[-1])
-                final_acc = (final_preds == targets).float().mean().item()
-
-            print(f'Epoch {epoch + 1}: loss={avg_loss.item():.4f} init_acc={init_acc:.3f} mid_acc={mid_acc:.3f} acc={final_acc:.3f}')
+                accs = []
+                for state in states:
+                    pred = self.decode(state)
+                    accs.append((pred == targets).float().mean().item())
+                
+            print(f'Epoch {epoch + 1}: loss={avg_loss.item():.4f} accs=', [f'{acc:.3f}' for acc in accs])
