@@ -51,8 +51,8 @@ class NCA(th.nn.Module):
 
         for _ in range(steps):
             proposed_state = self.forward(state)
-            res_state = self.async_update(prev_state=state, proposed_state=proposed_state, mask_prob=mask_prob)
-            states.append(res_state)
+            state = self.async_update(prev_state=state, proposed_state=proposed_state, mask_prob=mask_prob)
+            states.append(state)
         return states
 
     def per_pixel_log_loss(self, states: list[th.FloatTensor], target: th.LongTensor) -> (th.FloatTensor, float):
