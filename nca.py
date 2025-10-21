@@ -1,13 +1,24 @@
 import torch as th
 
+class PerPixelLayerNorm(th.nn.Module):
+    def __init__(self, n_channels):
+        super().__init__()
+        self.ln = th.nn.LayerNorm(normalized_shape=n_channels)
+    
+    def forward(self, x: th.FloatTensor):
+        x = x.permute(0, 2, 3, 1)
+        x = self.ln(x)
+        return x.permute(0, 3, 1, 2)
+
+
 class NCA(th.nn.Module):
-    def __init__(self, n_hidden_channels: int = 20,) -> None:
+    def __init__(self, n_hidden_channels: int = 20, out_channels: int = 64) -> None:
         super().__init__()
         self.n_hidden_channels = n_hidden_channels
         self.n_channels = 10 + n_hidden_channels
-        self.perceive = th.nn.Conv2d(in_channels=self.n_channels, out_channels=64, kernel_size=3, padding=1) #! hard-coded output channels
-        self.norm = th.nn.GroupNorm(num_groups=1, num_channels=64) #! hard-coded output channels
-        self.update = th.nn.Conv2d(in_channels=64, out_channels=self.n_channels, kernel_size=1) #! hard-coded input channels
+        self.perceive = th.nn.Conv2d(in_channels=self.n_channels, out_channels=out_channels, kernel_size=3, padding=1)
+        self.normalizer = PerPixelLayerNorm(n_channels=out_channels)
+        self.update = th.nn.Conv2d(in_channels=out_channels, out_channels=self.n_channels, kernel_size=1)
 
     def encode(self, grids: th.LongTensor) -> th.FloatTensor:
         '''
@@ -29,7 +40,7 @@ class NCA(th.nn.Module):
             Single forward pass of rules on a batch of grids, returning the updated states.
         '''
         y = self.perceive(x)
-        y = self.norm(y)
+        y = self.normalizer(y)
         y = th.nn.functional.relu(y, inplace=False)
         return self.update(y)
 
