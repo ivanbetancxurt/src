@@ -1,4 +1,5 @@
 import torch as th
+from torch.distributions.constraints import boolean
 
 class PerPixelLayerNorm(th.nn.Module):
     def __init__(self, n_channels):
@@ -53,12 +54,12 @@ class NCA(th.nn.Module):
         M = mask.float() * strengths
         return ((1 - M) * proposed_state) + (M * prev_state)
 
-    def rollout(self, state: th.FloatTensor, steps: int, mask_prob_low: float = 0.0, mask_prob_high: float = 0.75) -> list[th.FloatTensor]:
+    def rollout(self, state: th.FloatTensor, steps: int, mask_prob_low: float = 0.0, mask_prob_high: float = 0.75, force_sync=False) -> list[th.FloatTensor]:
         '''
             Applies 'steps' forward passes to the inputs and returns all the intermediate states.
         '''
         states = [state]
-        mask_prob = th.distributions.Uniform(mask_prob_low, mask_prob_high).sample().item()
+        mask_prob = 0.0 if force_sync else th.distributions.Uniform(mask_prob_low, mask_prob_high).sample().item()
 
         for _ in range(steps):
             proposed_state = self.forward(state)
