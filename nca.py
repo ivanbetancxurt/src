@@ -54,7 +54,7 @@ class NCA(th.nn.Module):
         M = mask.float() * strengths
         return ((1 - M) * proposed_state) + (M * prev_state)
 
-    def rollout(self, state: th.FloatTensor, steps: int, mask_prob_low: float = 0.0, mask_prob_high: float = 0.75, force_sync=False) -> list[th.FloatTensor]:
+    def rollout(self, state: th.FloatTensor, steps: int, mask_prob_low: float = 0.0, mask_prob_high: float = 0.75, force_sync: bool = False) -> list[th.FloatTensor]:
         '''
             Applies 'steps' forward passes to the inputs and returns all the intermediate states.
         '''
@@ -106,3 +106,20 @@ class NCA(th.nn.Module):
                     accs.append((pred == targets).float().mean().item())
                 
             print(f'Epoch {epoch + 1}: loss={avg_loss.item():.4f} accs=', [f'{acc:.3f}' for acc in accs])
+
+    @th.no_grad
+    def evaluate(self, inputs: th.LongTensor, targets: th.LongTensor, steps: int = 20):
+        self.eval()
+        inputs = self.encode(grids=inputs)
+        states = self.rollout(state=inputs, steps=steps)
+
+        accs = []
+        for state in states:
+            pred = self.decode(state)
+            accs.append((pred == targets).float().mean().item())
+        
+        return {
+            'final_accuracy': accs[-1],
+            'per_step_accuracies': accs,
+            'final_state': states[-1]
+        }
