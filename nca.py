@@ -109,6 +109,9 @@ class NCA(th.nn.Module):
 
     @th.no_grad
     def evaluate(self, inputs: th.LongTensor, targets: th.LongTensor, steps: int = 20):
+        '''
+            Evaluate learned rules on new data.
+        '''
         self.eval()
         inputs = self.encode(grids=inputs)
         states = self.rollout(state=inputs, steps=steps)
