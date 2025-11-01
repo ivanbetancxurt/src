@@ -107,14 +107,14 @@ class NCA(th.nn.Module):
                 
             print(f'Epoch {epoch + 1}: loss={avg_loss.item():.4f} accs=', [f'{acc:.3f}' for acc in accs])
 
-    @th.no_grad
+    @th.no_grad()
     def evaluate(self, inputs: th.LongTensor, targets: th.LongTensor, steps: int = 20):
         '''
             Evaluate learned rules on new data.
         '''
         self.eval()
         inputs = self.encode(grids=inputs)
-        states = self.rollout(state=inputs, steps=steps)
+        states = self.rollout(state=inputs, steps=steps, force_sync=True)
 
         accs = []
         for state in states:
