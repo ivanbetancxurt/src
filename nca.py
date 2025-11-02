@@ -79,14 +79,20 @@ class NCA(th.nn.Module):
         step_losses = th.stack(step_losses)
         return (step_losses, step_losses.mean())
 
-    def train_identity(self, epochs: int = 10, learning_rate: float = 1e-3, steps_per_batch: int = 10):
+    def train(self, epochs: int = 10, learning_rate: float = 0.002, steps_per_batch: int = 10):
         '''
-            Train model on the identity task.
+            Train model on given tasks.
         '''
         grids = th.randint(0, 10, size=(10000, 10, 10))
         grids = th.reshape(grids, shape=(200, 50, 10, 10))
 
-        optimizer = th.optim.Adam(self.parameters(), lr=learning_rate)
+        optimizer = th.optim.AdamW(self.parameters(), lr=learning_rate)
+        scheduler = th.optim.lr_scheduler.LinearLR(
+            optimizer,
+            start_factor=1.0,
+            end_factor=0.0001 / learning_rate,
+            total_iters=epochs,
+        )
 
         for epoch in range(epochs):
             for batch in grids:
@@ -98,7 +104,8 @@ class NCA(th.nn.Module):
                 optimizer.zero_grad(set_to_none=True)
                 avg_loss.backward()
                 optimizer.step()
-
+            
+            scheduler.step()
             with th.no_grad():
                 accs = []
                 for state in states:
