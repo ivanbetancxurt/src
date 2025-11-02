@@ -1,5 +1,9 @@
+import os
 import torch as th
-from torch.distributions.constraints import boolean
+import numpy as np
+from collections import defaultdict
+import json
+import random
 
 class PerPixelLayerNorm(th.nn.Module):
     def __init__(self, n_channels):
@@ -79,43 +83,51 @@ class NCA(th.nn.Module):
         step_losses = th.stack(step_losses)
         return (step_losses, step_losses.mean())
 
-    def train(self, epochs: int = 10, learning_rate: float = 0.002, steps_per_batch: int = 10):
+    def load_data(self, data_directory: str) -> list[dict]:
+        '''
+            Convert json data into python dictionaries.
+        '''
+        tasks = []
+        for file in os.listdir(data_directory):
+            with open(os.path.join(data_directory, file), 'r') as f:
+                task = json.load(f)
+                tasks.append(task)
+        
+        return tasks
+
+    def train(self, data_directory: str, epochs: int = 10, learning_rate: float = 0.002, steps_per_batch: int = 10):
         '''
             Train model on given tasks.
         '''
-        grids = th.randint(0, 10, size=(10000, 10, 10))
-        grids = th.reshape(grids, shape=(200, 50, 10, 10))
+        tasks = self.load_data(data_directory)
+        
+        shape_buckets = defaultdict(list)
+        for task in tasks:
+            for example in task['train']:
+                shape_buckets[np.asarray(example['input']).shape].append(example)
 
         optimizer = th.optim.AdamW(self.parameters(), lr=learning_rate)
-        scheduler = th.optim.lr_scheduler.LinearLR(
-            optimizer,
-            start_factor=1.0,
-            end_factor=0.0001 / learning_rate,
-            total_iters=epochs,
-        )
+        scheduler = th.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0001 / learning_rate, total_iters=epochs)
 
         for epoch in range(epochs):
-            for batch in grids:
-                targets = batch
-                batch = self.encode(batch)
-                states = self.rollout(batch, steps=steps_per_batch)
+            for example_list in shape_buckets.values():
+                random.shuffle(example_list)
+
+                inputs = th.stack([th.tensor(example['input'], dtype=th.long) for example in example_list])
+                targets = th.stack([th.tensor(example['output'], dtype=th.long) for example in example_list])
+
+                inputs = self.encode(inputs)
+                states = self.rollout(inputs, steps=steps_per_batch)
                 _, avg_loss = self.per_pixel_log_loss(states, targets)
 
                 optimizer.zero_grad(set_to_none=True)
                 avg_loss.backward()
                 optimizer.step()
-            
+
             scheduler.step()
-            with th.no_grad():
-                accs = []
-                for state in states:
-                    pred = self.decode(state)
-                    accs.append((pred == targets).float().mean().item())
-                
-            print(f'Epoch {epoch + 1}: loss={avg_loss.item():.4f} accs=', [f'{acc:.3f}' for acc in accs])
 
     @th.no_grad()
-    def evaluate(self, inputs: th.LongTensor, targets: th.LongTensor, steps: int = 20):
+    def evaluate(self, inputs: th.LongTensor, targets: th.LongTensor, steps: int = 20) -> dict:
         '''
             Evaluate learned rules on new data.
         '''
