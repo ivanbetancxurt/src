@@ -95,7 +95,7 @@ class NCA(th.nn.Module):
         
         return tasks
 
-    def train(self, data_directory: str, epochs: int = 10, learning_rate: float = 0.002, steps_per_batch: int = 10):
+    def fit(self, data_directory: str, epochs: int = 800, learning_rate: float = 0.002, steps_per_batch: int = 10, trials_per_example: int = 128):
         '''
             Train model on given tasks.
         '''
@@ -110,18 +110,20 @@ class NCA(th.nn.Module):
         scheduler = th.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0001 / learning_rate, total_iters=epochs)
 
         for epoch in range(epochs):
+            print(f'___EPOCH-{epoch + 1}___')
             for example_list in shape_buckets.values():
                 random.shuffle(example_list)
 
-                inputs = th.stack([th.tensor(example['input'], dtype=th.long) for example in example_list])
-                targets = th.stack([th.tensor(example['output'], dtype=th.long) for example in example_list])
+                for _ in range(trials_per_example):
+                    inputs = th.stack([th.tensor(example['input'], dtype=th.long) for example in example_list])
+                    targets = th.stack([th.tensor(example['output'], dtype=th.long) for example in example_list])
 
-                inputs = self.encode(inputs)
-                states = self.rollout(inputs, steps=steps_per_batch)
-                _, avg_loss = self.per_pixel_log_loss(states, targets)
+                    inputs = self.encode(inputs)
+                    states = self.rollout(inputs, steps=steps_per_batch)
+                    _, loss = self.per_pixel_log_loss(states, targets)
+                    (loss / trials_per_example).backward()
 
                 optimizer.zero_grad(set_to_none=True)
-                avg_loss.backward()
                 optimizer.step()
 
             scheduler.step()
@@ -143,5 +145,5 @@ class NCA(th.nn.Module):
         return {
             'final_accuracy': accs[-1],
             'per_step_accuracies': accs,
-            'final_state': states[-1]
+            'final_state': self.decode(states[-1])
         }
