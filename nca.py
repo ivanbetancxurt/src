@@ -63,7 +63,7 @@ class NCA(th.nn.Module):
             Applies 'steps' forward passes to the inputs and returns all the intermediate states.
         '''
         states = [state]
-        mask_prob = 0.0 if force_sync else th.distributions.Uniform(mask_prob_low, mask_prob_high).sample().item()
+        mask_prob = 0.0 if force_sync else th.empty(1, device=state.device).uniform_(from_=mask_prob_low, to=mask_prob_high).item()
 
         for _ in range(steps):
             proposed_state = self.forward(state)
@@ -100,6 +100,7 @@ class NCA(th.nn.Module):
             Train model on given tasks.
         '''
         tasks = self.load_data(data_directory)
+        device = next(self.parameters()).device
         
         shape_buckets = defaultdict(list)
         for task in tasks:
@@ -113,17 +114,17 @@ class NCA(th.nn.Module):
             print(f'___EPOCH-{epoch + 1}___')
             for example_list in shape_buckets.values():
                 random.shuffle(example_list)
-
+                optimizer.zero_grad(set_to_none=True)
+                
                 for _ in range(trials_per_example):
-                    inputs = th.stack([th.tensor(example['input'], dtype=th.long) for example in example_list])
-                    targets = th.stack([th.tensor(example['output'], dtype=th.long) for example in example_list])
+                    inputs = th.stack([th.tensor(example['input'], dtype=th.long, device=device) for example in example_list])
+                    targets = th.stack([th.tensor(example['output'], dtype=th.long, device=device) for example in example_list])
 
                     inputs = self.encode(inputs)
                     states = self.rollout(inputs, steps=steps_per_batch)
                     _, loss = self.per_pixel_log_loss(states, targets)
                     (loss / trials_per_example).backward()
 
-                optimizer.zero_grad(set_to_none=True)
                 optimizer.step()
 
             scheduler.step()
@@ -134,8 +135,9 @@ class NCA(th.nn.Module):
             Evaluate learned rules on new data.
         '''
         self.eval()
-        inputs = self.encode(grids=inputs)
-        states = self.rollout(state=inputs, steps=steps, force_sync=True)
+        device = next(self.parameters()).device
+        inputs = self.encode(grids=inputs.to(device))
+        states = self.rollout(state=inputs.to(device), steps=steps, force_sync=True)
 
         accs = []
         for state in states:
