@@ -63,7 +63,7 @@ class NCA(th.nn.Module):
             Applies 'steps' forward passes to the inputs and returns all the intermediate states.
         '''
         states = [state]
-        mask_prob = 0.0 if force_sync else th.empty(1, device=state.device).uniform_(from_=mask_prob_low, to=mask_prob_high).item()
+        mask_prob = 0.0 if force_sync else th.empty(1, device=state.device).uniform_(mask_prob_low, mask_prob_high).item()
 
         for _ in range(steps):
             proposed_state = self.forward(state)
@@ -115,7 +115,7 @@ class NCA(th.nn.Module):
             for example_list in shape_buckets.values():
                 random.shuffle(example_list)
                 optimizer.zero_grad(set_to_none=True)
-                
+
                 for _ in range(trials_per_example):
                     inputs = th.stack([th.tensor(example['input'], dtype=th.long, device=device) for example in example_list])
                     targets = th.stack([th.tensor(example['output'], dtype=th.long, device=device) for example in example_list])
