@@ -4,6 +4,7 @@ import numpy as np
 from collections import defaultdict
 import json
 import random
+from utils import progress_bar
 
 class PerPixelLayerNorm(th.nn.Module):
     def __init__(self, n_channels):
@@ -111,10 +112,10 @@ class NCA(th.nn.Module):
         scheduler = th.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0001 / learning_rate, total_iters=epochs)
 
         for epoch in range(epochs):
-            print(f'___EPOCH-{epoch + 1}___')
-            for example_list in shape_buckets.values():
+            for i, example_list in enumerate(shape_buckets.values()):
                 random.shuffle(example_list)
                 optimizer.zero_grad(set_to_none=True)
+                progress_bar(i, len(shape_buckets.values()), f'Epoch: {epoch + 1}')
 
                 for _ in range(trials_per_example):
                     inputs = th.stack([th.tensor(example['input'], dtype=th.long, device=device) for example in example_list])
