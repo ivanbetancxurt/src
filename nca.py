@@ -18,7 +18,7 @@ class PerPixelLayerNorm(th.nn.Module):
 
 
 class NCA(th.nn.Module):
-    def __init__(self, n_hidden_channels: int = 20, out_channels: int = 64) -> None:
+    def __init__(self, n_hidden_channels: int = 20, out_channels: int = 34) -> None: #? 34 out channels approximates the paper's total parameter numbers, given that everything else is the same
         super().__init__()
         self.n_hidden_channels = n_hidden_channels
         self.n_channels = 10 + n_hidden_channels
