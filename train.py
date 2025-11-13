@@ -1,4 +1,3 @@
-from torch.utils import data
 from nca import NCA
 import torch as th
 
@@ -8,16 +7,16 @@ print(f'DEVICE: {device}')
 model = NCA()
 model = model.to(device)
 
-model.fit(data_directory='../data/arc-1/training', epochs=3)
+model.fit(data_directory='../data/arc-1/training')
 
 th.save({
     'model': model.state_dict(),
     'configs': {
         'n_hidden_channels': model.n_hidden_channels,
-        'out_channels': 64
+        'out_channels': 34
     },
-    'epochs': 3,
+    'epochs': 800,
     'device': str(device)
-}, '../checkpoints/nca_test_02.pth')
+}, '../checkpoints/full_arc1_run_01.pth')
 
 print('Model saved.')

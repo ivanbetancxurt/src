@@ -181,3 +181,4 @@ cython_debug/
 .cursorindexingignore
 
 test.ipynb
+data/gradient-lexicase-benchmark
