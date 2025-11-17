@@ -143,7 +143,8 @@ class NCA(th.nn.Module):
         accs = []
         for state in states:
             pred = self.decode(state)
-            accs.append((pred == targets).float().mean().item())
+            eq = th.all((pred == targets), dim=(1, 2))
+            accs.append(eq.float().mean().item())
         
         return {
             'final_accuracy': accs[-1],
