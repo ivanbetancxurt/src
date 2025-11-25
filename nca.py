@@ -18,13 +18,16 @@ class PerPixelLayerNorm(th.nn.Module):
 
 
 class NCA(th.nn.Module):
-    def __init__(self, n_hidden_channels: int = 20, out_channels: int = 34) -> None: #? 34 out channels approximates the paper's total parameter numbers, given that everything else is the same
+    def __init__(self, n_hidden_channels: int = 4) -> None:
         super().__init__()
         self.n_hidden_channels = n_hidden_channels
         self.n_channels = 10 + n_hidden_channels
-        self.perceive = th.nn.Conv2d(in_channels=self.n_channels, out_channels=out_channels, kernel_size=3, padding=1)
-        self.normalizer = PerPixelLayerNorm(n_channels=out_channels)
-        self.update = th.nn.Conv2d(in_channels=out_channels, out_channels=self.n_channels, kernel_size=1)
+        self.perceive = th.nn.Conv2d(in_channels=self.n_channels, out_channels=self.n_channels, kernel_size=3, padding=1)
+        self.normalizer1, self.normalizer2 = PerPixelLayerNorm(n_channels=self.n_channels), PerPixelLayerNorm(n_channels=self.n_channels)
+        self.update = th.nn.Conv2d(in_channels=self.n_channels, out_channels=self.n_channels, kernel_size=1)
+
+        self.linear1 = th.nn.Conv2d(in_channels=(10 + self.n_channels), out_channels=self.n_channels, kernel_size=1)
+        self.linear2 = th.nn.Conv2d(in_channels=self.n_channels, out_channels=self.n_channels, kernel_size=1)
 
     def encode(self, grids: th.LongTensor) -> th.FloatTensor:
         '''
@@ -41,14 +44,24 @@ class NCA(th.nn.Module):
         '''
         return grid[:, :10].argmax(dim=1)
 
-    def forward(self, x: th.FloatTensor) -> th.FloatTensor:
+    def forward(self, grids: th.FloatTensor) -> th.FloatTensor:
         '''
             Single forward pass of rules on a batch of grids, returning the updated states.
         '''
-        y = self.perceive(x)
-        y = self.normalizer(y)
-        y = th.nn.functional.relu(y, inplace=False)
-        return self.update(y)
+        initial_grids = grids
+        grids = self.perceive(grids)
+        grids = self.normalizer1(grids)
+        grids = th.nn.functional.relu(grids, inplace=False)
+
+        grids = th.cat((grids, initial_grids[:, :10]), dim=1)
+        grids = self.linear1(grids)
+        grids = self.normalizer2(grids)
+        grids = th.nn.functional.relu(grids, inplace=False)
+        grids = self.linear2(grids)
+
+        
+
+        return grids 
 
     def async_update(self, prev_state: th.FloatTensor, proposed_state: th.FloatTensor, mask_prob):
         '''
@@ -63,6 +76,8 @@ class NCA(th.nn.Module):
         '''
             Applies 'steps' forward passes to the inputs and returns all the intermediate states.
         '''
+        state = self.encode(state)
+
         states = [state]
         mask_prob = 0.0 if force_sync else th.empty(1, device=state.device).uniform_(mask_prob_low, mask_prob_high).item()
 
@@ -121,7 +136,6 @@ class NCA(th.nn.Module):
                     inputs = th.stack([th.tensor(example['input'], dtype=th.long, device=device) for example in example_list])
                     targets = th.stack([th.tensor(example['output'], dtype=th.long, device=device) for example in example_list])
 
-                    inputs = self.encode(inputs)
                     states = self.rollout(inputs, steps=steps_per_batch)
                     _, loss = self.per_pixel_log_loss(states, targets)
                     (loss / trials_per_example).backward()
@@ -137,7 +151,6 @@ class NCA(th.nn.Module):
         '''
         self.eval()
         device = next(self.parameters()).device
-        inputs = self.encode(grids=inputs.to(device))
         states = self.rollout(state=inputs.to(device), steps=steps, force_sync=True)
 
         accs = []
