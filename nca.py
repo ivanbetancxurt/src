@@ -24,10 +24,9 @@ class NCA(th.nn.Module):
         self.n_channels = 10 + n_hidden_channels
         self.perceive = th.nn.Conv2d(in_channels=self.n_channels, out_channels=self.n_channels, kernel_size=3, padding=1)
         self.normalizer1, self.normalizer2 = PerPixelLayerNorm(n_channels=self.n_channels), PerPixelLayerNorm(n_channels=self.n_channels)
-        self.update = th.nn.Conv2d(in_channels=self.n_channels, out_channels=self.n_channels, kernel_size=1)
-
         self.linear1 = th.nn.Conv2d(in_channels=(10 + self.n_channels), out_channels=self.n_channels, kernel_size=1)
         self.linear2 = th.nn.Conv2d(in_channels=self.n_channels, out_channels=self.n_channels, kernel_size=1)
+        self.temperature = 5
 
     def encode(self, grids: th.LongTensor) -> th.FloatTensor:
         '''
@@ -46,7 +45,7 @@ class NCA(th.nn.Module):
 
     def forward(self, grids: th.FloatTensor) -> th.FloatTensor:
         '''
-            Single forward pass of rules on a batch of grids, returning the updated states.
+            Single forward pass of rules on a batch of grids, returning the updated states. Must encode first if not running via rollout().
         '''
         initial_grids = grids
         grids = self.perceive(grids)
@@ -59,7 +58,7 @@ class NCA(th.nn.Module):
         grids = th.nn.functional.relu(grids, inplace=False)
         grids = self.linear2(grids)
 
-        
+        grids = th.cat((th.softmax(grids[:, :10] / self.temperature, dim=1), grids[:, 10:]), dim=1)
 
         return grids 
 
@@ -93,8 +92,8 @@ class NCA(th.nn.Module):
         '''
         step_losses = []
         for state in states[1:]:
-            logits = state[:, :10]
-            step_losses.append(th.nn.functional.cross_entropy(input=logits, target=target))
+            probs = state[:, :10].clamp_min(1e-8)
+            step_losses.append(th.nn.functional.nll_loss(input=probs.log(), target=target))
 
         step_losses = th.stack(step_losses)
         return (step_losses, step_losses.mean())
