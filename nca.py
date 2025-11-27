@@ -22,7 +22,7 @@ class NCA(th.nn.Module):
         super().__init__()
         self.n_hidden_channels = n_hidden_channels
         self.n_channels = 10 + n_hidden_channels
-        self.perceive = th.nn.Conv2d(in_channels=self.n_channels, out_channels=self.n_channels, kernel_size=3, padding=1)
+        self.conv = th.nn.Conv2d(in_channels=self.n_channels, out_channels=self.n_channels, kernel_size=3, padding=1)
         self.normalizer1, self.normalizer2 = PerPixelLayerNorm(n_channels=self.n_channels), PerPixelLayerNorm(n_channels=self.n_channels)
         self.linear1 = th.nn.Conv2d(in_channels=(10 + self.n_channels), out_channels=self.n_channels, kernel_size=1)
         self.linear2 = th.nn.Conv2d(in_channels=self.n_channels, out_channels=self.n_channels, kernel_size=1)
@@ -48,7 +48,7 @@ class NCA(th.nn.Module):
             Single forward pass of rules on a batch of grids, returning the updated states. Must encode first if not running via rollout().
         '''
         initial_grids = grids
-        grids = self.perceive(grids)
+        grids = self.conv(grids)
         grids = self.normalizer1(grids)
         grids = th.nn.functional.relu(grids, inplace=False)
 
@@ -71,7 +71,7 @@ class NCA(th.nn.Module):
         M = mask.float() * strengths
         return ((1 - M) * proposed_state) + (M * prev_state)
 
-    def rollout(self, state: th.FloatTensor, steps: int, mask_prob_low: float = 0.0, mask_prob_high: float = 0.75, force_sync: bool = False) -> list[th.FloatTensor]:
+    def rollout(self, state: th.FloatTensor, steps: int, mask_prob_low: float, mask_prob_high: float, force_sync: bool) -> list[th.FloatTensor]:
         '''
             Applies 'steps' forward passes to the inputs and returns all the intermediate states.
         '''
@@ -98,21 +98,38 @@ class NCA(th.nn.Module):
         step_losses = th.stack(step_losses)
         return (step_losses, step_losses.mean())
 
+    def load_task(self, task_path: str) -> dict:
+        '''
+            Convert an individual json task into a python dictionary.
+        '''
+        with open(task_path, 'r') as f:
+            task = json.load(f)
+        
+        return task
+
     def load_data(self, data_directory: str) -> list[dict]:
         '''
             Convert json data into python dictionaries.
         '''
         tasks = []
         for file in os.listdir(data_directory):
-            with open(os.path.join(data_directory, file), 'r') as f:
-                task = json.load(f)
-                tasks.append(task)
+            tasks.append(self.load_task(os.path.join(data_directory, file)))
         
         return tasks
 
-    def fit(self, data_directory: str, epochs: int = 800, learning_rate: float = 0.002, steps_per_batch: int = 10, trials_per_example: int = 128):
+    def fit(
+        self, 
+        data_directory: str, 
+        epochs: int = 800, 
+        steps: int = 30, 
+        trials: int = 128, 
+        learning_rate: float = 0.002,
+        mask_prob_low: float = 0.0, 
+        mask_prob_high: float = 0.75, 
+        force_sync: bool = False
+    ):
         '''
-            Train model on given tasks.
+            Train NCA on all tasks.
         '''
         tasks = self.load_data(data_directory)
         device = next(self.parameters()).device
@@ -131,14 +148,72 @@ class NCA(th.nn.Module):
                 optimizer.zero_grad(set_to_none=True)
                 progress_bar(i, len(shape_buckets.values()), f'Epoch: {epoch + 1}')
 
-                for _ in range(trials_per_example):
+                for _ in range(trials):
                     inputs = th.stack([th.tensor(example['input'], dtype=th.long, device=device) for example in example_list])
                     targets = th.stack([th.tensor(example['output'], dtype=th.long, device=device) for example in example_list])
 
-                    states = self.rollout(inputs, steps=steps_per_batch)
+                    states = self.rollout(inputs, steps=steps, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=force_sync)
                     _, loss = self.per_pixel_log_loss(states, targets)
-                    (loss / trials_per_example).backward()
+                    (loss / trials).backward()
 
+                optimizer.step()
+
+            scheduler.step()
+
+    def calc_steps(self, steps: int, grid: th.FloatTensor, max_grid_area: int) -> int:
+        '''
+            For training by task, scale the allowed number of steps by the area of the grid.
+        '''
+        grid_area = grid.shape[0] * grid.shape[1]
+        ratio = (grid_area / max_grid_area) ** 0.5
+        scaled_steps = int(steps * ratio)
+        scaled_steps = max(scaled_steps, steps // 4)
+        return scaled_steps
+
+    def fit_by_task(
+        self, 
+        task_path: str, 
+        epochs: int = 800,
+        steps: int = 30,
+        trials: int = 128,
+        learning_rate: float = 0.002, 
+        mask_prob_low: float = 0.0, 
+        mask_prob_high: float = 0.75, 
+        force_sync: bool = False
+    ):
+        '''
+            Train NCA on one task.
+        '''
+        def single_trial(x: th.FloatTensor, y: th.LongTensor, steps: int) -> (th.FloatTensor, float):
+            states = self.rollout(state=x.unsqueeze(0), steps=steps, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=force_sync)
+            _, loss = self.per_pixel_log_loss(states=states, target=y.unsqueeze(0))
+            return loss
+        
+        rollout_trials = th.vmap(single_trial, in_dims=(0, 0, None))
+
+        task = self.load_task(task_path)
+        max_grid_area = max(len(example['input']) * len(example['input'][0]) for example in task['train'])
+        device = next(self.parameters()).device
+
+        optimizer = th.optim.AdamW(self.parameters(), lr=learning_rate)
+        scheduler = th.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0001 / learning_rate, total_iters=epochs)
+
+        for epoch in range(epochs):
+            random.shuffle(task['train'])
+            progress_bar(epoch + 1, epochs)
+
+            for example in task['train']:
+                optimizer.zero_grad(set_to_none=True)
+                x = th.tensor(example['input'], dtype=th.long, device=device)
+                y = th.tensor(example['output'], dtype=th.long, device=device)
+
+                steps_for_example = self.calc_steps(steps=steps, grid=x, max_grid_area=max_grid_area)
+
+                x_expanded = x.unsqueeze(0).expand((trials, -1, -1))
+                y_expanded = y.unsqueeze(0).expand((trials, -1, -1))
+                losses = rollout_trials(x_expanded, y_expanded, steps_for_example)
+                avg_loss = losses.mean()
+                avg_loss.backward()
                 optimizer.step()
 
             scheduler.step()
