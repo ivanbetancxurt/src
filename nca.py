@@ -198,10 +198,12 @@ class NCA(th.nn.Module):
         optimizer = th.optim.AdamW(self.parameters(), lr=learning_rate)
         scheduler = th.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0001 / learning_rate, total_iters=epochs)
 
+        epoch_losses = []
         for epoch in range(epochs):
             random.shuffle(task['train'])
             progress_bar(epoch + 1, epochs)
-
+            
+            batch_losses = []
             for example in task['train']:
                 optimizer.zero_grad(set_to_none=True)
                 x = th.tensor(example['input'], dtype=th.long, device=device)
@@ -212,11 +214,16 @@ class NCA(th.nn.Module):
                 x_expanded = x.unsqueeze(0).expand((trials, -1, -1))
                 y_expanded = y.unsqueeze(0).expand((trials, -1, -1))
                 losses = rollout_trials(x_expanded, y_expanded, steps_for_example)
+
                 avg_loss = losses.mean()
+                batch_losses.append(avg_loss.item())
                 avg_loss.backward()
                 optimizer.step()
 
+            epoch_losses.append(sum(batch_losses) / len(batch_losses))
             scheduler.step()
+        
+        return epoch_losses
 
     @th.no_grad()
     def evaluate(self, inputs: th.LongTensor, targets: th.LongTensor, steps: int = 20) -> dict:
