@@ -18,7 +18,7 @@ class PerPixelLayerNorm(th.nn.Module):
 
 
 class NCA(th.nn.Module):
-    def __init__(self, n_hidden_channels: int = 4) -> None:
+    def __init__(self, n_hidden_channels: int = 20, temperature: int = 5) -> None:
         super().__init__()
         self.n_hidden_channels = n_hidden_channels
         self.n_channels = 10 + n_hidden_channels
@@ -26,7 +26,7 @@ class NCA(th.nn.Module):
         self.normalizer1, self.normalizer2 = PerPixelLayerNorm(n_channels=self.n_channels), PerPixelLayerNorm(n_channels=self.n_channels)
         self.linear1 = th.nn.Conv2d(in_channels=(10 + self.n_channels), out_channels=self.n_channels, kernel_size=1)
         self.linear2 = th.nn.Conv2d(in_channels=self.n_channels, out_channels=self.n_channels, kernel_size=1)
-        self.temperature = 5
+        self.temperature = temperature
 
     def encode(self, grids: th.LongTensor) -> th.FloatTensor:
         '''
@@ -121,7 +121,7 @@ class NCA(th.nn.Module):
         self, 
         data_directory: str, 
         epochs: int = 800, 
-        steps: int = 30, 
+        steps: int = 10, 
         trials: int = 128, 
         learning_rate: float = 0.002,
         mask_prob_low: float = 0.0, 
@@ -174,7 +174,7 @@ class NCA(th.nn.Module):
         self, 
         task_path: str, 
         epochs: int = 800,
-        steps: int = 30,
+        steps: int = 10,
         trials: int = 128,
         learning_rate: float = 0.002, 
         mask_prob_low: float = 0.0, 
@@ -184,13 +184,7 @@ class NCA(th.nn.Module):
         '''
             Train NCA on one task.
         '''
-        def single_trial(x: th.FloatTensor, y: th.LongTensor, steps: int) -> (th.FloatTensor, float):
-            states = self.rollout(state=x.unsqueeze(0), steps=steps, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=force_sync)
-            _, loss = self.per_pixel_log_loss(states=states, target=y.unsqueeze(0))
-            return loss
-        
-        rollout_trials = th.vmap(single_trial, in_dims=(0, 0, None))
-
+    
         task = self.load_task(task_path)
         max_grid_area = max(len(example['input']) * len(example['input'][0]) for example in task['train'])
         device = next(self.parameters()).device
@@ -199,9 +193,9 @@ class NCA(th.nn.Module):
         scheduler = th.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0001 / learning_rate, total_iters=epochs)
 
         epoch_losses = []
+        print('==> Training...')
         for epoch in range(epochs):
             random.shuffle(task['train'])
-            progress_bar(epoch + 1, epochs)
             
             batch_losses = []
             for example in task['train']:
@@ -211,16 +205,20 @@ class NCA(th.nn.Module):
 
                 steps_for_example = self.calc_steps(steps=steps, grid=x, max_grid_area=max_grid_area)
 
-                x_expanded = x.unsqueeze(0).expand((trials, -1, -1))
-                y_expanded = y.unsqueeze(0).expand((trials, -1, -1))
-                losses = rollout_trials(x_expanded, y_expanded, steps_for_example)
+                total_loss = 0.0
+                for _ in range(trials):
+                    states = self.rollout(state=x.unsqueeze(0), steps=steps_for_example, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=force_sync)
+                    _, loss = self.per_pixel_log_loss(states=states, target=y.unsqueeze(0))
+                    total_loss += loss
 
-                avg_loss = losses.mean()
-                batch_losses.append(avg_loss.item())
+                avg_loss = th.stack(total_loss / trials)
                 avg_loss.backward()
+                batch_losses.append(avg_loss.item())
                 optimizer.step()
 
-            epoch_losses.append(sum(batch_losses) / len(batch_losses))
+            epoch_loss = sum(batch_losses) / len(batch_losses)
+            epoch_losses.append(epoch_loss)
+            progress_bar(epoch + 1, epochs, f": {epoch_loss:.4f}")
             scheduler.step()
         
         return epoch_losses
