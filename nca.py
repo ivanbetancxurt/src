@@ -232,7 +232,8 @@ class NCA(th.nn.Module):
         '''
         self.eval()
         device = next(self.parameters()).device
-        states = self.rollout(state=inputs.to(device), steps=steps, force_sync=True)
+        states = self.rollout(state=inputs.to(device), steps=steps, mask_prob_low=0, mask_prob_high=0, force_sync=True)
+        targets = targets.to(device)
 
         accs = []
         for state in states:
