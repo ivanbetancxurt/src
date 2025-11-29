@@ -205,13 +205,13 @@ class NCA(th.nn.Module):
 
                 steps_for_example = self.calc_steps(steps=steps, grid=x, max_grid_area=max_grid_area)
 
-                total_loss = 0.0
+                losses = []
                 for _ in range(trials):
                     states = self.rollout(state=x.unsqueeze(0), steps=steps_for_example, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=force_sync)
                     _, loss = self.per_pixel_log_loss(states=states, target=y.unsqueeze(0))
-                    total_loss += loss
+                    losses.append(loss)
 
-                avg_loss = th.stack(total_loss / trials)
+                avg_loss = th.stack(losses).mean()
                 avg_loss.backward()
                 batch_losses.append(avg_loss.item())
                 optimizer.step()
