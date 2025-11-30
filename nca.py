@@ -180,7 +180,7 @@ class NCA(th.nn.Module):
         mask_prob_low: float = 0.0, 
         mask_prob_high: float = 0.75, 
         force_sync: bool = False
-    ):
+    ) -> list:
         '''
             Train NCA on one task.
         '''
@@ -218,7 +218,7 @@ class NCA(th.nn.Module):
 
             epoch_loss = sum(batch_losses) / len(batch_losses)
             epoch_losses.append(epoch_loss)
-            progress_bar(epoch + 1, epochs, f": {epoch_loss:.4f}")
+            progress_bar(epoch + 1, epochs, f"Loss: {epoch_loss:.4f}")
             scheduler.step()
         
         return epoch_losses
@@ -233,14 +233,18 @@ class NCA(th.nn.Module):
         states = self.rollout(state=inputs.to(device), steps=steps, mask_prob_low=0, mask_prob_high=0, force_sync=True)
         targets = targets.to(device)
 
-        accs = []
+        exact_match_accs = []
+        pixel_accs = []
         for state in states:
             pred = self.decode(state)
             eq = th.all((pred == targets), dim=(1, 2))
-            accs.append(eq.float().mean().item())
+            exact_match_accs.append(eq.float().mean().item())
+            pixel_accs.append((pred == targets).float().mean().item())
         
         return {
-            'final_accuracy': accs[-1],
-            'per_step_accuracies': accs,
+            'exact_match_final_accuracy': exact_match_accs[-1],
+            'exact_match_per_step_accuracies': exact_match_accs,
+            'pixel_final_accuracy': pixel_accs[-1],
+            'pixel_per_step_accuracies': pixel_accs,
             'final_state': self.decode(states[-1])
         }

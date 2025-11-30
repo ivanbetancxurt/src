@@ -23,7 +23,7 @@ def main():
     model = model.to(device)
 
     if args.bytask:
-        model.fit_by_task(
+        losses = model.fit_by_task(
             task_path='../data/arc-1/training/task_1.json',
             epochs=args.epochs,
             steps=args.steps,
@@ -56,7 +56,7 @@ def main():
         },
         'epochs': args.epochs,
         'device': str(device)
-    }, f'../checkpoints/f{args.name}.pth')
+    }, f'../checkpoints/{args.name}.pth')
 
     print('Model saved.')
 
