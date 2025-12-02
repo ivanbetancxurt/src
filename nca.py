@@ -224,7 +224,7 @@ class NCA(th.nn.Module):
         return epoch_losses
 
     @th.no_grad()
-    def evaluate(self, inputs: th.LongTensor, targets: th.LongTensor, steps: int = 20) -> dict:
+    def evaluate(self, inputs: th.LongTensor, targets: th.LongTensor, steps: int = 10) -> dict:
         '''
             Evaluate learned rules on new data.
         '''

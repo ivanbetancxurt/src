@@ -1,6 +1,7 @@
 from nca import NCA
 import torch as th
 import argparse
+import csv
 
 def main():
     parser = argparse.ArgumentParser()
@@ -24,7 +25,7 @@ def main():
 
     if args.bytask:
         losses = model.fit_by_task(
-            task_path='../data/arc-1/training/task_1.json',
+            task_path='../data/arc-1/training/task_2.json',
             epochs=args.epochs,
             steps=args.steps,
             trials=args.trials,
@@ -42,6 +43,12 @@ def main():
             mask_prob_low=args.mplow,
             mask_prob_high=args.mphigh
         )
+
+    with open(f'../data/{args.name}_losses.csv', 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['epoch', 'loss'])
+        for epoch, loss in enumerate(losses, start=1):
+            writer.writerow([epoch, loss])
 
     th.save({
         'model': model.state_dict(),
