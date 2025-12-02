@@ -6,7 +6,7 @@ import csv
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--name', type=str, help='Model name')
-    parser.add_argument('--bytask', action='store_true', help='Training by task')
+    parser.add_argument('--bytask', type=int, help='Task being trained on. 0 means we train over all tasks.')
     parser.add_argument('--nhidden', default=20, type=int, help='Number of hidden channels')
     parser.add_argument('--temp', default=5, type=int, help='Temperature for softmaxing')
     parser.add_argument('--epochs', default=800, type=int, help='Number of epochs')
@@ -23,9 +23,9 @@ def main():
     model = NCA(n_hidden_channels=args.nhidden, temperature=args.temp)
     model = model.to(device)
 
-    if args.bytask:
+    if args.bytask > 0:
         losses = model.fit_by_task(
-            task_path='../data/arc-1/training/task_2.json',
+            task_path=f'../data/arc-1/training/task_{args.bytask}.json',
             epochs=args.epochs,
             steps=args.steps,
             trials=args.trials,
