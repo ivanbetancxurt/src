@@ -1,6 +1,6 @@
 #!/bin/sh
 #SBATCH --job-name=arc1_bytask39_01
-#SBATCH --partition=gpu-a100-q
+#SBATCH --partition=gpu-a5000-q
 #SBATCH --gres=gpu:a100:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=8G
