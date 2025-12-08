@@ -25,7 +25,7 @@ def main():
 
     if args.bytask > 0:
         losses = model.fit_by_task(
-            task_path=f'../data/arc-1/training/task_{args.bytask}.json',
+            task_path=f'../data/arc1/training/task_{args.bytask}.json',
             epochs=args.epochs,
             steps=args.steps,
             trials=args.trials,
@@ -34,8 +34,11 @@ def main():
             mask_prob_high=args.mphigh
         )
     else: 
+
+        #? losses
+
         model.fit(
-            data_directory='../data/arc-1/training',
+            data_directory='../data/arc1/training',
             epochs=args.epochs,
             steps=args.steps,
             trials=args.trials,
