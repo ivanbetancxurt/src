@@ -142,23 +142,34 @@ class NCA(th.nn.Module):
         optimizer = th.optim.AdamW(self.parameters(), lr=learning_rate)
         scheduler = th.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0001 / learning_rate, total_iters=epochs)
 
+        print('==> Training...')
+        epoch_losses = []
         for epoch in range(epochs):
+            batch_losses = []
             for i, example_list in enumerate(shape_buckets.values()):
                 random.shuffle(example_list)
                 optimizer.zero_grad(set_to_none=True)
                 progress_bar(i, len(shape_buckets.values()), f'Epoch: {epoch + 1}')
 
+                losses = []
                 for _ in range(trials):
                     inputs = th.stack([th.tensor(example['input'], dtype=th.long, device=device) for example in example_list])
                     targets = th.stack([th.tensor(example['output'], dtype=th.long, device=device) for example in example_list])
 
                     states = self.rollout(inputs, steps=steps, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=force_sync)
                     _, loss = self.per_pixel_log_loss(states, targets)
-                    (loss / trials).backward()
+                    losses.append(loss)
 
+                avg_loss = th.stack(losses).mean()
+                avg_loss.backward()
+                batch_losses.append(avg_loss.item())
                 optimizer.step()
 
+            epoch_loss = sum(batch_losses) / len(batch_losses)
+            epoch_losses.append(epoch_loss)
             scheduler.step()
+        
+        return epoch_losses
 
     def calc_steps(self, steps: int, grid: th.FloatTensor, max_grid_area: int) -> int:
         '''
