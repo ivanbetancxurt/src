@@ -237,7 +237,7 @@ class NCA(th.nn.Module):
         pixel_accs = []
         for state in states:
             pred = self.decode(state)
-            eq = th.all((pred == targets), dim=(1, 2))
+            eq = (pred == targets).reshape(pred.shape[0], -1).all(dim=1)
             exact_match_accs.append(eq.float().mean().item())
             pixel_accs.append((pred == targets).float().mean().item())
         
