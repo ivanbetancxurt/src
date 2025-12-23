@@ -1,3 +1,4 @@
+from copy import deepcopy
 import os
 import torch as th
 import numpy as np
@@ -117,6 +118,43 @@ class NCA(th.nn.Module):
         
         return tasks
 
+    def get_shape_buckets(self, tasks: list[dict]) -> defaultdict[list]:
+        shape_buckets = defaultdict(list)
+
+        for task in tasks:
+            for example in task['train']:
+                shape_buckets[np.asarray(example['input']).shape].append(example)
+
+        return shape_buckets
+
+    def train_on_examples(
+        self, 
+        examples: list,
+        steps: int,
+        trials: int,
+        mask_prob_low: float,
+        mask_prob_high: float, 
+        force_sync: bool,
+        device
+    ) -> float:
+        '''
+            Train NCA on a collection of examples.
+        '''
+        random.shuffle(examples)
+
+        losses = []
+        for _ in range(trials):
+            inputs = th.stack([th.tensor(example['input'], dtype=th.long, device=device) for example in examples])
+            targets = th.stack([th.tensor(example['output'], dtype=th.long, device=device) for example in examples])
+
+            states = self.rollout(inputs, steps=steps, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=force_sync)
+            _, loss = self.per_pixel_log_loss(states, targets)
+            losses.append(loss)
+
+        avg_loss = th.stack(losses).mean()
+        avg_loss.backward()
+        return avg_loss.item()
+
     def fit(
         self, 
         data_directory: str, 
@@ -127,17 +165,14 @@ class NCA(th.nn.Module):
         mask_prob_low: float = 0.0, 
         mask_prob_high: float = 0.75, 
         force_sync: bool = False
-    ):
+    ) -> list[float]:
         '''
             Train NCA on all tasks.
         '''
         tasks = self.load_data(data_directory)
         device = next(self.parameters()).device
         
-        shape_buckets = defaultdict(list)
-        for task in tasks:
-            for example in task['train']:
-                shape_buckets[np.asarray(example['input']).shape].append(example)
+        shape_buckets = self.get_shape_buckets(tasks)
 
         optimizer = th.optim.AdamW(self.parameters(), lr=learning_rate)
         scheduler = th.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0001 / learning_rate, total_iters=epochs)
@@ -146,23 +181,22 @@ class NCA(th.nn.Module):
         epoch_losses = []
         for epoch in range(epochs):
             batch_losses = []
+
             for i, example_list in enumerate(shape_buckets.values()):
-                random.shuffle(example_list)
                 optimizer.zero_grad(set_to_none=True)
                 progress_bar(i, len(shape_buckets.values()), f'Epoch: {epoch + 1}')
+                
+                avg_loss = self.train_on_examples(
+                    examples=example_list, 
+                    steps=steps, 
+                    trials=trials, 
+                    mask_prob_low=mask_prob_low, 
+                    mask_prob_high=mask_prob_high,
+                    force_sync=force_sync,
+                    device=device
+                )
 
-                losses = []
-                for _ in range(trials):
-                    inputs = th.stack([th.tensor(example['input'], dtype=th.long, device=device) for example in example_list])
-                    targets = th.stack([th.tensor(example['output'], dtype=th.long, device=device) for example in example_list])
-
-                    states = self.rollout(inputs, steps=steps, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=force_sync)
-                    _, loss = self.per_pixel_log_loss(states, targets)
-                    losses.append(loss)
-
-                avg_loss = th.stack(losses).mean()
-                avg_loss.backward()
-                batch_losses.append(avg_loss.item())
+                batch_losses.append(avg_loss)
                 optimizer.step()
 
             epoch_loss = sum(batch_losses) / len(batch_losses)
@@ -170,6 +204,85 @@ class NCA(th.nn.Module):
             scheduler.step()
         
         return epoch_losses
+
+    def lexi_fit(
+        self, 
+        data_directory: str, 
+        epochs: int = 200, #! ATTENTION
+        steps: int = 10, 
+        trials: int = 128, 
+        learning_rate: float = 0.002,
+        mask_prob_low: float = 0.0, 
+        mask_prob_high: float = 0.75, 
+        force_sync: bool = False,
+        pop_size: int = 4,
+        use_sgd: bool = True,
+    ):
+        '''
+            Train NCA on all tasks with gradient lexicase selection.
+        '''
+        def cosine_annealing_lr(epoch: int, lr: float = 0.1, T_max=epochs, eta_min=0):
+            return eta_min + (0.5 * (lr - eta_min) * (1 + np.cos((epoch)/T_max * np.pi)))
+
+        def subset_gd(epoch: int, children: list[NCA]) -> list[NCA]:
+            '''
+                Train each child NCA on a disjoint subset of the data.
+            '''
+            optimizers, schedulers = [], []
+            for child in children:
+                if use_sgd:
+                    optimizer = th.optim.SGD(child.parameters(), lr=cosine_annealing_lr(epoch), momentum=0.9, weight_decay=1e-4)
+                    optimizers.append(optimizer)
+                else:
+                    optimizer = th.optim.AdamW(child.parameters(), lr=learning_rate)
+                    scheduler = th.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0001 / learning_rate, total_iters=epochs)
+                    optimizers.append(optimizer)
+                    schedulers.append(scheduler)
+            
+            task_indices = list(range(len(tasks)))
+            random.shuffle(task_indices)
+            task_idx_partitions = [task_indices[i::pop_size] for i in range(pop_size)]
+
+            for i, child in enumerate(children):
+                subset_tasks = [tasks[j] for j in task_idx_partitions[i]]
+                shape_buckets = child.get_shape_buckets(subset_tasks)
+
+                for j, example_list in enumerate(shape_buckets.values()):
+                    optimizer[j].zero_grad(set_to_none=True)
+                    
+                    avg_loss = child.train_on_examples(
+                        examples=example_list,
+                        steps=steps,
+                        trials=trials, #! ATTENTION
+                        mask_prob_low=mask_prob_low, 
+                        mask_prob_high=mask_prob_high,
+                        force_sync=force_sync,
+                        device=device
+                    )
+
+                    optimizer[j].step()
+
+            return children
+        
+        def select(children: list[NCA]) -> list[NCA]:
+            '''
+                Select a child NCA with lexicase selection and generate a new population.
+            '''
+            pass
+
+        epochs *= (pop_size + 1)
+
+        tasks = self.load_data(data_directory)
+        device = next(self.parameters()).device
+        children = [deepcopy(self) for _ in range(pop_size)]
+
+        for epoch in range(epochs):
+            children = subset_gd(epoch, children)
+            
+            
+
+
+
 
     def calc_steps(self, steps: int, grid: th.FloatTensor, max_grid_area: int) -> int:
         '''
@@ -191,11 +304,10 @@ class NCA(th.nn.Module):
         mask_prob_low: float = 0.0, 
         mask_prob_high: float = 0.75, 
         force_sync: bool = False
-    ) -> list:
+    ) -> list[float]:
         '''
             Train NCA on one task.
         '''
-    
         task = self.load_task(task_path)
         max_grid_area = max(len(example['input']) * len(example['input'][0]) for example in task['train'])
         device = next(self.parameters()).device

@@ -184,3 +184,4 @@ cython_debug/
 data/gradient-lexicase-benchmark
 checkpoints/
 kev
+lexi.py
