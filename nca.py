@@ -63,7 +63,7 @@ class NCA(th.nn.Module):
 
         return grids 
 
-    def async_update(self, prev_state: th.FloatTensor, proposed_state: th.FloatTensor, mask_prob):
+    def async_update(self, prev_state: th.FloatTensor, proposed_state: th.FloatTensor, mask_prob) -> th.FloatTensor:
         '''
             Mask the new state, with probability mask_prob, by interpolating its cells with the those of the previous state by a random stength.
         '''
@@ -138,12 +138,14 @@ class NCA(th.nn.Module):
         mask_prob_low: float,
         mask_prob_high: float, 
         force_sync: bool,
-        device
+        device,
+        rng_seed: int | None = None
     ) -> float:
         '''
             Train NCA on a collection of examples.
         '''
-        random.shuffle(examples)
+        rand_ex = random.Random(rng_seed)
+        rand_ex.shuffle(examples)
 
         losses = []
         for _ in range(trials):
@@ -221,6 +223,7 @@ class NCA(th.nn.Module):
         force_sync: bool = False,
         pop_size: int = 4,
         use_sgd: bool = True,
+        rng_seed: int = 25
     ):
         '''
             Train NCA on all tasks with gradient lexicase selection.
@@ -244,28 +247,38 @@ class NCA(th.nn.Module):
                     schedulers.append(scheduler)
             
             task_indices = list(range(len(tasks)))
-            random.shuffle(task_indices)
+            rand_partition = random.Random(partition_seed)
+            rand_partition.shuffle(task_indices)
             task_idx_partitions = [task_indices[i::pop_size] for i in range(pop_size)]
 
             for i, child in enumerate(children):
-                subset_tasks = [tasks[j] for j in task_idx_partitions[i]]
-                shape_buckets = child.get_shape_buckets(subset_tasks)
+                child_seed = gen_seed + 5000 + i
+                is_cuda = next(child.parameters()).is_cuda
+                devices = [th.cuda.current_device()] if is_cuda else []
 
-                for j, example_list in enumerate(shape_buckets.values()):
-                    optimizers[i].zero_grad(set_to_none=True)
-                    progress_bar(j, len(shape_buckets.values()), f'Epoch {epoch + 1}: Training child {i}')
-                    
-                    avg_loss = child.train_on_examples(
-                        examples=example_list,
-                        steps=steps,
-                        trials=trials, #! ATTENTION
-                        mask_prob_low=mask_prob_low, 
-                        mask_prob_high=mask_prob_high,
-                        force_sync=force_sync,
-                        device=device
-                    )
+                with th.random.fork_rng(devices=devices):
+                    th.manual_seed(child_seed)
+                    if is_cuda: th.cuda.manual_seed_all(child_seed)
 
-                    optimizers[i].step()
+                    subset_tasks = [tasks[j] for j in task_idx_partitions[i]]
+                    shape_buckets = child.get_shape_buckets(subset_tasks)
+
+                    for j, example_list in enumerate(shape_buckets.values()):
+                        optimizers[i].zero_grad(set_to_none=True)
+                        progress_bar(j, len(shape_buckets.values()), f'Epoch {epoch + 1}: Training child {i}')
+                        
+                        avg_loss = child.train_on_examples(
+                            examples=example_list,
+                            steps=steps,
+                            trials=trials, #! ATTENTION
+                            mask_prob_low=mask_prob_low, 
+                            mask_prob_high=mask_prob_high,
+                            force_sync=force_sync,
+                            device=device,
+                            rng_seed=examples_seed
+                        )
+
+                        optimizers[i].step()
 
                 if not use_sgd: schedulers[i].step()
 
@@ -283,7 +296,8 @@ class NCA(th.nn.Module):
                 for example in task['train']:
                     cases.append(example)
             
-            random.shuffle(cases)
+            rand_cases = random.Random(cases_seed)
+            rand_cases.shuffle(cases)
             
             for case in cases:
                 scores = []
@@ -300,7 +314,8 @@ class NCA(th.nn.Module):
                 if len(pool) == 1: break
                     
             if len(pool) > 1:
-                parent_idx = random.choice(pool)
+                rand_select = random.Random(select_seed)
+                parent_idx = rand_select.choice(pool)
             else:
                 parent_idx = pool[0]
             
@@ -316,6 +331,12 @@ class NCA(th.nn.Module):
 
         print('==> Evolving...')
         for epoch in range(epochs):
+            gen_seed = rng_seed + (2500 * epoch)
+            partition_seed = gen_seed + 1
+            cases_seed = gen_seed + 2
+            select_seed = gen_seed + 3
+            examples_seed = gen_seed + 250
+
             print('==> Training children...')
             children = subset_gd(epoch, children)
 
