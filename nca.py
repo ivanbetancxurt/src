@@ -119,6 +119,9 @@ class NCA(th.nn.Module):
         return tasks
 
     def get_shape_buckets(self, tasks: list[dict]) -> defaultdict[list]:
+        '''
+            Returns a dictionary of the training inputs of the given tasks grouped by their shape.
+        '''
         shape_buckets = defaultdict(list)
 
         for task in tasks:
@@ -207,7 +210,8 @@ class NCA(th.nn.Module):
 
     def lexi_fit(
         self, 
-        data_directory: str, 
+        data_directory: str,
+        epsilon: float,
         epochs: int = 200, #! ATTENTION
         steps: int = 10, 
         trials: int = 128, 
@@ -247,8 +251,8 @@ class NCA(th.nn.Module):
                 subset_tasks = [tasks[j] for j in task_idx_partitions[i]]
                 shape_buckets = child.get_shape_buckets(subset_tasks)
 
-                for j, example_list in enumerate(shape_buckets.values()):
-                    optimizer[i].zero_grad(set_to_none=True)
+                for example_list in shape_buckets.values():
+                    optimizers[i].zero_grad(set_to_none=True)
                     
                     avg_loss = child.train_on_examples(
                         examples=example_list,
@@ -260,17 +264,45 @@ class NCA(th.nn.Module):
                         device=device
                     )
 
-                    optimizer[i].step()
+                    optimizers[i].step()
 
-                if not use_sgd: scheduler[i].step()
-                
+                if not use_sgd: schedulers[i].step()
+
             return children
         
         def select(children: list[NCA]) -> list[NCA]:
             '''
                 Select a child NCA with lexicase selection and generate a new population.
             '''
-            pass
+            pool = list(range(len(children)))
+            cases = []
+            for task in tasks:
+                for example in task['train']:
+                    cases.append(example)
+            
+            random.shuffle(cases)
+            
+            for case in cases:
+                scores = []
+                x = th.tensor(case['input'])
+                y = th.tensor(case['output'])
+
+                for child_idx in pool:
+                    score = children[child_idx].evaluate(inputs=x.unsqueeze(0), targets=y.unsqueeze(0), steps=steps)['pixel_final_accuracy']
+                    scores.append(score)
+                
+                best = max(scores)
+                pool = [child_idx for (child_idx, score) in zip(pool, scores) if score >= best - epsilon]
+                if len(pool) == 1: break
+                    
+            if len(pool) > 1:
+                parent_idx = random.choice(pool)
+            else:
+                parent_idx = pool[0]
+            
+            parent = children[parent_idx]
+            children = [deepcopy(parent) for _ in range(pop_size)]
+            return children
 
         epochs *= (pop_size + 1)
 
@@ -280,11 +312,9 @@ class NCA(th.nn.Module):
 
         for epoch in range(epochs):
             children = subset_gd(epoch, children)
+            children = select(children)
             
-            
-
-
-
+        self.load_state_dict(children[0].state_dict())
 
     def calc_steps(self, steps: int, grid: th.FloatTensor, max_grid_area: int) -> int:
         '''
