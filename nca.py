@@ -248,7 +248,7 @@ class NCA(th.nn.Module):
                 shape_buckets = child.get_shape_buckets(subset_tasks)
 
                 for j, example_list in enumerate(shape_buckets.values()):
-                    optimizer[j].zero_grad(set_to_none=True)
+                    optimizer[i].zero_grad(set_to_none=True)
                     
                     avg_loss = child.train_on_examples(
                         examples=example_list,
@@ -260,7 +260,7 @@ class NCA(th.nn.Module):
                         device=device
                     )
 
-                    optimizer[j].step()
+                    optimizer[i].step()
 
             return children
         
