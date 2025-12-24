@@ -262,6 +262,8 @@ class NCA(th.nn.Module):
 
                     optimizer[i].step()
 
+                if not use_sgd: scheduler[i].step()
+                
             return children
         
         def select(children: list[NCA]) -> list[NCA]:
