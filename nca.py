@@ -251,8 +251,9 @@ class NCA(th.nn.Module):
                 subset_tasks = [tasks[j] for j in task_idx_partitions[i]]
                 shape_buckets = child.get_shape_buckets(subset_tasks)
 
-                for example_list in shape_buckets.values():
+                for j, example_list in enumerate(shape_buckets.values()):
                     optimizers[i].zero_grad(set_to_none=True)
+                    progress_bar(j, len(shape_buckets.values()), f'Epoch {epoch + 1}: Training child {i}')
                     
                     avg_loss = child.train_on_examples(
                         examples=example_list,
@@ -275,6 +276,8 @@ class NCA(th.nn.Module):
                 Select a child NCA with lexicase selection and generate a new population.
             '''
             pool = list(range(len(children)))
+            print(f'==> Starting population size: {len(pool)}')
+
             cases = []
             for task in tasks:
                 for example in task['train']:
@@ -293,6 +296,7 @@ class NCA(th.nn.Module):
                 
                 best = max(scores)
                 pool = [child_idx for (child_idx, score) in zip(pool, scores) if score >= best - epsilon]
+                print(f'==> {len(pool)} remaining...')
                 if len(pool) == 1: break
                     
             if len(pool) > 1:
@@ -310,8 +314,12 @@ class NCA(th.nn.Module):
         device = next(self.parameters()).device
         children = [deepcopy(self) for _ in range(pop_size)]
 
+        print('==> Evolving...')
         for epoch in range(epochs):
+            print('==> Training children...')
             children = subset_gd(epoch, children)
+
+            print('==> Selecting parent for next generation...')
             children = select(children)
             
         self.load_state_dict(children[0].state_dict())

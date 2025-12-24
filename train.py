@@ -19,7 +19,7 @@ def main():
 
     device = th.device('cuda' if th.cuda.is_available() else 'cpu')
 
-    print(f'DEVICE: {device}')
+    print(f'==> DEVICE: {device}')
     model = NCA(n_hidden_channels=args.nhidden, temperature=args.temp)
     model = model.to(device)
 
@@ -65,7 +65,7 @@ def main():
         'device': str(device)
     }, f'../checkpoints/{args.name}.pth')
 
-    print('Model saved.')
+    print('==> Model saved.')
 
 if __name__ == '__main__':
     main()
