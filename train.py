@@ -6,7 +6,7 @@ import csv
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--name', type=str, help='Model name')
-    parser.add_argument('--bytask', type=int, help='Task being trained on. 0 means we train over all tasks.')
+    parser.add_argument('--bytask', type=int, help='Task being trained on. 0 means we train over all tasks with no lexi. -1 means with lexi.')
     parser.add_argument('--nhidden', default=20, type=int, help='Number of hidden channels')
     parser.add_argument('--temp', default=5, type=int, help='Temperature for softmaxing')
     parser.add_argument('--epochs', default=800, type=int, help='Number of epochs')
@@ -33,7 +33,7 @@ def main():
             mask_prob_low=args.mplow,
             mask_prob_high=args.mphigh
         )
-    else: 
+    elif args.bytask == 0: 
         losses = model.fit(
             data_directory='../data/arc1/training',
             epochs=args.epochs,
@@ -43,7 +43,18 @@ def main():
             mask_prob_low=args.mplow,
             mask_prob_high=args.mphigh
         )
+    elif args.bytask == -1:
+        model.lexi_fit(
+            data_directory='../data/arc1/training',
+            epochs=args.epochs,
+            steps=args.steps,
+            trials=args.trials,
+            learning_rate=args.lr,
+            mask_prob_low=args.mplow,
+            mask_prob_high=args.mphigh
+        )
 
+    '''
     with open(f'../data/{args.name}_losses.csv', 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['epoch', 'loss'])
@@ -64,7 +75,8 @@ def main():
         'epochs': args.epochs,
         'device': str(device)
     }, f'../checkpoints/{args.name}.pth')
-
+    '''
+    
     print('==> Model saved.')
 
 if __name__ == '__main__':
