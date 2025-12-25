@@ -312,7 +312,9 @@ class NCA(th.nn.Module):
                 y = th.tensor(case['output'])
 
                 for child_idx in pool:
-                    score = children[child_idx].evaluate(inputs=x.unsqueeze(0), targets=y.unsqueeze(0), steps=steps)['pixel_final_accuracy']
+                    res = children[child_idx].evaluate(inputs=x.unsqueeze(0), targets=y.unsqueeze(0), steps=steps)
+                    score = res['pixel_final_accuracy']
+                    print(f'===> Child {child_idx + 1} scores {score}!')
                     scores.append(score)
                 
                 best = max(scores)
