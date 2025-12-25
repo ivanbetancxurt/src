@@ -6,6 +6,7 @@ from collections import defaultdict
 import json
 import random
 from utils import progress_bar
+from typing import Optional
 
 class PerPixelLayerNorm(th.nn.Module):
     def __init__(self, n_channels):
@@ -139,7 +140,7 @@ class NCA(th.nn.Module):
         mask_prob_high: float, 
         force_sync: bool,
         device,
-        rng_seed: int | None = None
+        rng_seed: Optional[int] = None
     ) -> float:
         '''
             Train NCA on a collection of examples.
