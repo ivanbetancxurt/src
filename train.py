@@ -15,8 +15,9 @@ def main():
     parser.add_argument('--lr', default=0.002, type=float, help='Learning rate')
     parser.add_argument('--mplow', default=0.0, type=float, help='Mask probability low')
     parser.add_argument('--mphigh', default=0.75, type=float, help='Mask probability high')
+    parser.add_argument('--run', type=int, help='Run number')
     parser.add_argument('--epsilon', type=float, help='Survival threshold.')
-    parser.add_argument('--test', action='store_true', help='Testing mode. Runs for 1 epoch.')
+    parser.add_argument('--test', action='store_true', help='Testing mode. Runs for 3 epochs.')
     args = parser.parse_args()
 
     device = th.device('cuda' if th.cuda.is_available() else 'cpu')
@@ -35,6 +36,12 @@ def main():
             mask_prob_low=args.mplow,
             mask_prob_high=args.mphigh
         )
+
+        with open(f'../data/losses/bytask/0{args.run}/{args.name}_losses.csv', 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['epoch', 'loss'])
+            for epoch, loss in enumerate(losses, start=1):
+                writer.writerow([epoch, loss])
     elif args.bytask == 0: 
         losses = model.fit(
             data_directory='../data/arc1/training',
@@ -45,8 +52,14 @@ def main():
             mask_prob_low=args.mplow,
             mask_prob_high=args.mphigh
         )
+
+        with open(f'../data/losses/full/{args.name}_losses.csv', 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['epoch', 'loss'])
+            for epoch, loss in enumerate(losses, start=1):
+                writer.writerow([epoch, loss])
     elif args.bytask == -1:
-        model.lexi_fit(
+        losses = model.lexi_fit(
             data_directory='../data/arc1/training',
             epsilon=args.epsilon,
             epochs=args.epochs,
@@ -55,15 +68,16 @@ def main():
             learning_rate=args.lr,
             mask_prob_low=args.mplow,
             mask_prob_high=args.mphigh,
+            one_run_test=args.test
         )
 
-    '''
-    with open(f'../data/{args.name}_losses.csv', 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(['epoch', 'loss'])
-        for epoch, loss in enumerate(losses, start=1):
-            writer.writerow([epoch, loss])
+        with open(f'../data/losses/full_lexi/{args.name}_losses.csv', 'w', newline='') as f:
+            fieldnames = ['generation', 'child', 'loss']
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(losses)
 
+    '''
     th.save({
         'model': model.state_dict(),
         'configs': {
@@ -79,7 +93,6 @@ def main():
         'device': str(device)
     }, f'../checkpoints/{args.name}.pth')
     '''
-
     print('==> Model saved.')
 
 if __name__ == '__main__':

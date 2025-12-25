@@ -226,14 +226,14 @@ class NCA(th.nn.Module):
         use_sgd: bool = True,
         rng_seed: int = 25,
         one_run_test: bool = False,
-    ):
+    ) -> list[dict]:
         '''
             Train NCA on all tasks with gradient lexicase selection.
         '''
         def cosine_annealing_lr(epoch: int, lr: float = 0.1, T_max=epochs, eta_min=0):
             return eta_min + (0.5 * (lr - eta_min) * (1 + np.cos((epoch)/T_max * np.pi)))
 
-        def subset_gd(epoch: int, children: list[NCA]) -> list[NCA]:
+        def subset_gd(epoch: int, children: list[NCA]) -> (list[NCA], list[float]):
             '''
                 Train each child NCA on a disjoint subset of the data.
             '''
@@ -253,6 +253,7 @@ class NCA(th.nn.Module):
             rand_partition.shuffle(task_indices)
             task_idx_partitions = [task_indices[i::pop_size] for i in range(pop_size)]
 
+            child_losses = []
             for i, child in enumerate(children):
                 child_seed = gen_seed + 5000 + i
                 is_cuda = next(child.parameters()).is_cuda
@@ -265,6 +266,7 @@ class NCA(th.nn.Module):
                     subset_tasks = [tasks[j] for j in task_idx_partitions[i]]
                     shape_buckets = child.get_shape_buckets(subset_tasks)
 
+                    losses = []
                     for j, example_list in enumerate(shape_buckets.values()):
                         optimizers[i].zero_grad(set_to_none=True)
                         progress_bar(j, len(shape_buckets.values()), f'Epoch {epoch + 1}: Training child {i + 1}')
@@ -280,11 +282,14 @@ class NCA(th.nn.Module):
                             rng_seed=examples_seed
                         )
 
+                        losses.append(avg_loss)
                         optimizers[i].step()
+                    
+                    child_losses.append(np.mean(losses))
 
                 if not use_sgd: schedulers[i].step()
 
-            return children
+            return children, child_losses
         
         def select(children: list[NCA]) -> list[NCA]:
             '''
@@ -327,13 +332,15 @@ class NCA(th.nn.Module):
             return children
 
         if one_run_test:
-            epochs = 1
+            epochs = 3
         else:
             epochs *= (pop_size + 1)
 
         tasks = self.load_data(data_directory)
         device = next(self.parameters()).device
         children = [deepcopy(self) for _ in range(pop_size)]
+
+        losses_per_gen = []
 
         print('==> Evolving...')
         for epoch in range(epochs):
@@ -344,12 +351,15 @@ class NCA(th.nn.Module):
             examples_seed = gen_seed + 250
 
             print('==> Training children...')
-            children = subset_gd(epoch, children)
+            children, losses = subset_gd(epoch, children)
+            for i in range(len(children)):
+                losses_per_gen.append({'generation': epoch + 1, 'child': i + 1, 'loss': losses[i]})
 
             print('==> Selecting parent for next generation...')
             children = select(children)
             
         self.load_state_dict(children[0].state_dict())
+        return losses_per_gen
 
     def calc_steps(self, steps: int, grid: th.FloatTensor, max_grid_area: int) -> int:
         '''
