@@ -16,6 +16,7 @@ def main():
     parser.add_argument('--mplow', default=0.0, type=float, help='Mask probability low')
     parser.add_argument('--mphigh', default=0.75, type=float, help='Mask probability high')
     parser.add_argument('--epsilon', type=float, help='Survival threshold.')
+    parser.add_argument('--test', action='store_true', help='Testing mode. Runs for 1 epoch.')
     args = parser.parse_args()
 
     device = th.device('cuda' if th.cuda.is_available() else 'cpu')

@@ -224,7 +224,8 @@ class NCA(th.nn.Module):
         force_sync: bool = False,
         pop_size: int = 4,
         use_sgd: bool = True,
-        rng_seed: int = 25
+        rng_seed: int = 25,
+        one_run_test: bool = False,
     ):
         '''
             Train NCA on all tasks with gradient lexicase selection.
@@ -266,12 +267,12 @@ class NCA(th.nn.Module):
 
                     for j, example_list in enumerate(shape_buckets.values()):
                         optimizers[i].zero_grad(set_to_none=True)
-                        progress_bar(j, len(shape_buckets.values()), f'Epoch {epoch + 1}: Training child {i}')
+                        progress_bar(j, len(shape_buckets.values()), f'Epoch {epoch + 1}: Training child {i + 1}')
                         
                         avg_loss = child.train_on_examples(
                             examples=example_list,
                             steps=steps,
-                            trials=trials, #! ATTENTION
+                            trials=trials,
                             mask_prob_low=mask_prob_low, 
                             mask_prob_high=mask_prob_high,
                             force_sync=force_sync,
@@ -315,6 +316,7 @@ class NCA(th.nn.Module):
                 if len(pool) == 1: break
                     
             if len(pool) > 1:
+                print('==> Selecting random child...')
                 rand_select = random.Random(select_seed)
                 parent_idx = rand_select.choice(pool)
             else:
@@ -324,7 +326,10 @@ class NCA(th.nn.Module):
             children = [deepcopy(parent) for _ in range(pop_size)]
             return children
 
-        epochs *= (pop_size + 1)
+        if one_run_test:
+            epochs = 1
+        else:
+            epochs *= (pop_size + 1)
 
         tasks = self.load_data(data_directory)
         device = next(self.parameters()).device
