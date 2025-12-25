@@ -15,6 +15,7 @@ def main():
     parser.add_argument('--lr', default=0.002, type=float, help='Learning rate')
     parser.add_argument('--mplow', default=0.0, type=float, help='Mask probability low')
     parser.add_argument('--mphigh', default=0.75, type=float, help='Mask probability high')
+    parser.add_argument('--epsilon', type=float, help='Survival threshold.')
     args = parser.parse_args()
 
     device = th.device('cuda' if th.cuda.is_available() else 'cpu')
@@ -46,12 +47,13 @@ def main():
     elif args.bytask == -1:
         model.lexi_fit(
             data_directory='../data/arc1/training',
+            epsilon=args.epsilon,
             epochs=args.epochs,
             steps=args.steps,
             trials=args.trials,
             learning_rate=args.lr,
             mask_prob_low=args.mplow,
-            mask_prob_high=args.mphigh
+            mask_prob_high=args.mphigh,
         )
 
     '''
@@ -76,7 +78,7 @@ def main():
         'device': str(device)
     }, f'../checkpoints/{args.name}.pth')
     '''
-    
+
     print('==> Model saved.')
 
 if __name__ == '__main__':
