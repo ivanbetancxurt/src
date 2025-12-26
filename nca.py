@@ -308,8 +308,8 @@ class NCA(th.nn.Module):
             
             for case in cases:
                 scores = []
-                x = th.tensor(case['input'])
-                y = th.tensor(case['output'])
+                x = th.tensor(case['input'], dtype=th.long, device=device)
+                y = th.tensor(case['output'], dtype=th.long, device=device)
 
                 for child_idx in pool:
                     states = children[child_idx].rollout(state=x.unsqueeze(0), steps=steps, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=True)
