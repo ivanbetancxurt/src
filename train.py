@@ -17,7 +17,7 @@ def main():
     parser.add_argument('--mplow', default=0.0, type=float, help='Mask probability low')
     parser.add_argument('--mphigh', default=0.75, type=float, help='Mask probability high')
     parser.add_argument('--run', type=int, help='Run number')
-    parser.add_argument('--pop', type=int, help='Population size')
+    parser.add_argument('--pop', default=4, type=int, help='Population size')
     parser.add_argument('--epsilon', type=float, help='Survival threshold')
     parser.add_argument('--lrmax', default=0.1, type=float, help='Max learning rate for SGD (Lexi)')
     parser.add_argument('--lrmin', default=0, type=float, help='Minimum learning rate for SGD (Lexi)')
