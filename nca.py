@@ -218,7 +218,8 @@ class NCA(th.nn.Module):
         epochs: int = 200, #! ATTENTION
         steps: int = 10, 
         trials: int = 128, 
-        learning_rate: float = 0.002,
+        lr_max: float = 0.1,
+        lr_min: float = 0,
         mask_prob_low: float = 0.0, 
         mask_prob_high: float = 0.75, 
         force_sync: bool = False,
@@ -240,13 +241,13 @@ class NCA(th.nn.Module):
             optimizers, schedulers = [], []
             for child in children:
                 if use_sgd:
-                    optimizer = th.optim.SGD(child.parameters(), lr=cosine_annealing_lr(epoch), momentum=0.9, weight_decay=1e-4)
+                    optimizer = th.optim.SGD(child.parameters(), lr=cosine_annealing_lr(epoch=epoch, lr=lr_max, T_max=epochs, eta_min=lr_min), momentum=0.9, weight_decay=1e-4)
                     optimizers.append(optimizer)
                 else:
-                    optimizer = th.optim.AdamW(child.parameters(), lr=learning_rate)
-                    scheduler = th.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0001 / learning_rate, total_iters=epochs)
+                    #optimizer = th.optim.AdamW(child.parameters(), lr=learning_rate)
+                    #scheduler = th.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0001 / learning_rate, total_iters=epochs)
                     optimizers.append(optimizer)
-                    schedulers.append(scheduler)
+                    #schedulers.append(scheduler)
             
             task_indices = list(range(len(tasks)))
             rand_partition = random.Random(partition_seed)

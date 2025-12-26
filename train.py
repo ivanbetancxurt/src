@@ -13,12 +13,15 @@ def main():
     parser.add_argument('--epochs', default=800, type=int, help='Number of epochs')
     parser.add_argument('--steps', default=10, type=int, help='Number of steps allowed')
     parser.add_argument('--trials', default=128, type=int, help='Number of trials')
-    parser.add_argument('--lr', default=0.002, type=float, help='Learning rate')
+    parser.add_argument('--lr', default=0.002, type=float, help='AdamW learning rate')
     parser.add_argument('--mplow', default=0.0, type=float, help='Mask probability low')
     parser.add_argument('--mphigh', default=0.75, type=float, help='Mask probability high')
     parser.add_argument('--run', type=int, help='Run number')
-    parser.add_argument('--epsilon', type=float, help='Survival threshold.')
-    parser.add_argument('--adamw', action='store_false', help='Use AdamW optimizer instead of SGD.')
+    parser.add_argument('--pop', type=int, help='Population size')
+    parser.add_argument('--epsilon', type=float, help='Survival threshold')
+    parser.add_argument('--lrmax', default=0.1, type=float, help='Max learning rate for SGD (Lexi)')
+    parser.add_argument('--lrmin', default=0, type=float, help='Minimum learning rate for SGD (Lexi)')
+    parser.add_argument('--adamw', action='store_false', help='Use AdamW optimizer instead of SGD') #? Probably won't use this
     parser.add_argument('--test', action='store_true', help='Testing mode. Runs for 3 epochs.')
     args = parser.parse_args()
 
@@ -102,6 +105,7 @@ def main():
             learning_rate=args.lr,
             mask_prob_low=args.mplow,
             mask_prob_high=args.mphigh,
+            pop_size=args.pop,
             use_sgd=args.adamw,
             one_run_test=args.test
         )
@@ -111,6 +115,8 @@ def main():
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(losses)
+        
+        if not args.test: epochs = args.epochs * (args.pop + 1)
 
         th.save({
             'model': model.state_dict(),
@@ -119,13 +125,14 @@ def main():
                 'temperature': model.temperature,
                 'steps': args.steps,
                 'trials': args.trials,
-                'learning_rate': args.lr,
+                'learning_rate_max': args.lrmax,
+                'learning_rate_min': args.lrmin,
                 'mask_prob_low': args.mplow,
                 'mask_prob_high': args.mphigh
             },
-            'epochs': args.epochs,
+            'epochs': epochs,
             'device': str(device)
-        }, f'../checkpoints/{args.dataset}_full_lexi/{args.name}.pth')
+        }, f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs}g_{args.epsilon}e).pth')
 
     print('==> Model saved.')
 
