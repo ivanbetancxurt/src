@@ -312,9 +312,8 @@ class NCA(th.nn.Module):
                 y = th.tensor(case['output'])
 
                 for child_idx in pool:
-                    res = children[child_idx].evaluate(inputs=x.unsqueeze(0), targets=y.unsqueeze(0), steps=steps)
-                    score = res['pixel_final_accuracy']
-                    print(f'===> Child {child_idx + 1} scores {score}!')
+                    states = children[child_idx].rollout(state=x.unsqueeze(0), steps=steps, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=True)
+                    _, score = children[child_idx].per_pixel_log_loss(states=states, target=y.unsqueeze(0))
                     scores.append(score)
                 
                 best = max(scores)
