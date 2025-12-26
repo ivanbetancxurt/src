@@ -18,6 +18,7 @@ def main():
     parser.add_argument('--mphigh', default=0.75, type=float, help='Mask probability high')
     parser.add_argument('--run', type=int, help='Run number')
     parser.add_argument('--epsilon', type=float, help='Survival threshold.')
+    parser.add_argument('--adamw', action='store_false', help='Use AdamW optimizer instead of SGD.')
     parser.add_argument('--test', action='store_true', help='Testing mode. Runs for 3 epochs.')
     args = parser.parse_args()
 
@@ -101,6 +102,7 @@ def main():
             learning_rate=args.lr,
             mask_prob_low=args.mplow,
             mask_prob_high=args.mphigh,
+            use_sgd=args.adamw,
             one_run_test=args.test
         )
 

@@ -316,8 +316,8 @@ class NCA(th.nn.Module):
                     _, score = children[child_idx].per_pixel_log_loss(states=states, target=y.unsqueeze(0))
                     scores.append(score)
                 
-                best = max(scores)
-                pool = [child_idx for (child_idx, score) in zip(pool, scores) if score >= best - epsilon]
+                best = min(scores)
+                pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
                 print(f'==> {len(pool)} remaining...')
                 if len(pool) == 1: break
                     
