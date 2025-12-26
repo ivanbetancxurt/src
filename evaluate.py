@@ -56,7 +56,7 @@ def main():
     num_tasks = len(os.listdir(f'../data/{args.dataset}/training'))
     if args.bytask:
         for n in range(1, num_tasks + 1):
-            ckpt = th.load(f'../checkpoints/{args.dataset}_bytask_0{args.run}/{args.dataset}_bytask{n}_0{args.run}.pth', map_location=th.device(device))
+            ckpt = th.load(f'../checkpoints/{args.dataset}_bytask/0{args.run}/{args.dataset}_bytask{n}_0{args.run}.pth', map_location=th.device(device))
             configs = ckpt['configs']
             state = ckpt['model']
             model = NCA()
@@ -65,13 +65,13 @@ def main():
 
             evaluate(model=model, configs=configs, task_num=n, dataset=args.dataset)
 
-        with open(f'../data/results/results_{args.dataset}_bytask_0{args.run}.csv', 'w', newline='', encoding='utf-8') as f:
+        with open(f'../data/results/{args.dataset}_bytask/{args.dataset}_bytask_0{args.run}_results.csv', 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()  
             writer.writerows(data)
             
     else:
-        ckpt = th.load(f'../checkpoints/{args.dataset}_full_0{args.run}.pth', map_location=th.device(device))
+        ckpt = th.load(f'../checkpoints/{args.dataset}_full/{args.dataset}_full_0{args.run}.pth', map_location=th.device(device))
         configs = ckpt['configs']
         state = ckpt['model']
         model = NCA()
@@ -81,7 +81,7 @@ def main():
         for n in range(1, num_tasks + 1):
             evaluate(model=model, configs=configs, task_num=n, dataset=args.dataset)
 
-        with open(f'../data/results/results_{args.dataset}_full_0{args.run}.csv', 'w', newline='', encoding='utf-8') as f:
+        with open(f'../data/results/{args.dataset}_full/{args.dataset}_full_0{args.run}_results.csv', 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()  
             writer.writerows(data)

@@ -6,6 +6,7 @@ import csv
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--name', type=str, help='Model name')
+    parser.add_argument('--dataset', type=str, help='Dataset being evaluated on')
     parser.add_argument('--bytask', type=int, help='Task being trained on. 0 means we train over all tasks with no lexi. -1 means with lexi.')
     parser.add_argument('--nhidden', default=20, type=int, help='Number of hidden channels')
     parser.add_argument('--temp', default=5, type=int, help='Temperature for softmaxing')
@@ -28,7 +29,7 @@ def main():
 
     if args.bytask > 0:
         losses = model.fit_by_task(
-            task_path=f'../data/arc1/training/task_{args.bytask}.json',
+            task_path=f'../data/{args.dataset}/training/task_{args.bytask}.json',
             epochs=args.epochs,
             steps=args.steps,
             trials=args.trials,
@@ -37,14 +38,30 @@ def main():
             mask_prob_high=args.mphigh
         )
 
-        with open(f'../data/losses/bytask/0{args.run}/{args.name}_losses.csv', 'w', newline='') as f:
+        with open(f'../data/losses/{args.dataset}_bytask/0{args.run}/{args.name}_losses.csv', 'w', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(['epoch', 'loss'])
             for epoch, loss in enumerate(losses, start=1):
                 writer.writerow([epoch, loss])
+            
+        th.save({
+            'model': model.state_dict(),
+            'configs': {
+                'n_hidden_channels': model.n_hidden_channels,
+                'temperature': model.temperature,
+                'steps': args.steps,
+                'trials': args.trials,
+                'learning_rate': args.lr,
+                'mask_prob_low': args.mplow,
+                'mask_prob_high': args.mphigh
+            },
+            'epochs': args.epochs,
+            'device': str(device)
+        }, f'../checkpoints/{args.dataset}_bytask/0{args.run}/{args.name}.pth')
+
     elif args.bytask == 0: 
         losses = model.fit(
-            data_directory='../data/arc1/training',
+            data_directory=f'../data/{args.dataset}/training',
             epochs=args.epochs,
             steps=args.steps,
             trials=args.trials,
@@ -53,14 +70,30 @@ def main():
             mask_prob_high=args.mphigh
         )
 
-        with open(f'../data/losses/full/{args.name}_losses.csv', 'w', newline='') as f:
+        with open(f'../data/losses/{args.dataset}_full/{args.name}_losses.csv', 'w', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(['epoch', 'loss'])
             for epoch, loss in enumerate(losses, start=1):
                 writer.writerow([epoch, loss])
+
+        th.save({
+            'model': model.state_dict(),
+            'configs': {
+                'n_hidden_channels': model.n_hidden_channels,
+                'temperature': model.temperature,
+                'steps': args.steps,
+                'trials': args.trials,
+                'learning_rate': args.lr,
+                'mask_prob_low': args.mplow,
+                'mask_prob_high': args.mphigh
+            },
+            'epochs': args.epochs,
+            'device': str(device)
+        }, f'../checkpoints/{args.dataset}_full/{args.name}.pth')
+
     elif args.bytask == -1:
         losses = model.lexi_fit(
-            data_directory='../data/arc1/training',
+            data_directory=f'../data/{args.dataset}/training',
             epsilon=args.epsilon,
             epochs=args.epochs,
             steps=args.steps,
@@ -71,28 +104,27 @@ def main():
             one_run_test=args.test
         )
 
-        with open(f'../data/losses/full_lexi/{args.name}_losses.csv', 'w', newline='') as f:
+        with open(f'../data/losses/{args.dataset}_full_lexi/{args.name}_losses.csv', 'w', newline='') as f:
             fieldnames = ['generation', 'child', 'loss']
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(losses)
 
-    '''
-    th.save({
-        'model': model.state_dict(),
-        'configs': {
-            'n_hidden_channels': model.n_hidden_channels,
-            'temperature': model.temperature,
-            'steps': args.steps,
-            'trials': args.trials,
-            'learning_rate': args.lr,
-            'mask_prob_low': args.mplow,
-            'mask_prob_high': args.mphigh
-        },
-        'epochs': args.epochs,
-        'device': str(device)
-    }, f'../checkpoints/{args.name}.pth')
-    '''
+        th.save({
+            'model': model.state_dict(),
+            'configs': {
+                'n_hidden_channels': model.n_hidden_channels,
+                'temperature': model.temperature,
+                'steps': args.steps,
+                'trials': args.trials,
+                'learning_rate': args.lr,
+                'mask_prob_low': args.mplow,
+                'mask_prob_high': args.mphigh
+            },
+            'epochs': args.epochs,
+            'device': str(device)
+        }, f'../checkpoints/{args.dataset}_full_lexi/{args.name}.pth')
+
     print('==> Model saved.')
 
 if __name__ == '__main__':

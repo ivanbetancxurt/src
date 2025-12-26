@@ -16,4 +16,4 @@ module load pytorch-extra-py39-cuda11.8-gcc11
 
 mkdir -p logs/train ../checkpoints
 
-python3 ../train.py --name "$SLURM_JOB_NAME" --bytask -1 --epsilon 0.4 --test
+python3 ../train.py --name "$SLURM_JOB_NAME" --dataset "arc1" --bytask -1 --epsilon 0.4 --test
