@@ -18,7 +18,7 @@ def main():
     device = 'cuda' if th.cuda.is_available() else 'cpu'
 
     data = []
-    fieldnames, lexi_fieldnames = [
+    fieldnames = [
         'task', 
         'solved', 
         'final_pixel_accuracy', 
@@ -29,8 +29,8 @@ def main():
         'learning_rate',
         'mask_prob_low',
         'mask_prob_high'
-    ],
-    [
+    ]
+    lexi_fieldnames = [
         'task', 
         'solved', 
         'final_pixel_accuracy', 
