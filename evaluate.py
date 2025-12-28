@@ -136,6 +136,8 @@ def main():
         model = NCA()
         model.load_state_dict(state)
         model.to(device)
+        
+        print(configs['learning_rate_max'])
 
         for n in range(1, num_tasks + 1):
             evaluate(model=model, configs=configs, task_num=n, dataset=args.dataset)
