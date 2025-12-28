@@ -50,7 +50,7 @@ def main():
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()  
                 writer.writerows(data)
-        else:
+        elif not args.lexi:
             with open(f'../data/results/{args.dataset}_full/{args.dataset}_full_0{args.run}_results.csv', 'w', newline='', encoding='utf-8') as f:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()  
@@ -116,7 +116,7 @@ def main():
             evaluate(model=model, configs=configs, task_num=n, dataset=args.dataset)
 
         record()
-    else:
+    elif not args.lexi:
         ckpt = th.load(f'../checkpoints/{args.dataset}_full/{args.dataset}_full_0{args.run}.pth', map_location=th.device(device))
         configs = ckpt['configs']
         state = ckpt['model']
