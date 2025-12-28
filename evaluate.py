@@ -57,7 +57,7 @@ def main():
                 writer.writerows(data)
 
         if args.lexi:
-            with open(f'../data/results/{args.dataset}_full/{args.dataset}_full_lexi_{args.run}_results.csv', 'w', newline='', encoding='utf-8') as f:
+            with open(f'../data/results/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_results.csv', 'w', newline='', encoding='utf-8') as f:
                 writer = csv.DictWriter(f, fieldnames=lexi_fieldnames)
                 writer.writeheader()  
                 writer.writerows(data)
@@ -136,8 +136,6 @@ def main():
         model = NCA()
         model.load_state_dict(state)
         model.to(device)
-        
-        print(configs['learning_rate_max'])
 
         for n in range(1, num_tasks + 1):
             evaluate(model=model, configs=configs, task_num=n, dataset=args.dataset)
