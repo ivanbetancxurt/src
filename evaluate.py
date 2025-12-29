@@ -57,7 +57,7 @@ def main():
                 writer.writerows(data)
 
         if args.lexi:
-            with open(f'../data/results/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}_{args.epsilon})_results.csv', 'w', newline='', encoding='utf-8') as f:
+            with open(f'../data/results/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_{args.epsilon}e)_results.csv', 'w', newline='', encoding='utf-8') as f:
                 writer = csv.DictWriter(f, fieldnames=lexi_fieldnames)
                 writer.writeheader()  
                 writer.writerows(data)
