@@ -28,7 +28,7 @@ def main():
     full_lexi = subparsers.add_parser('full_lexi', parents=[common], help='Train NCA with gradient lexicase selection')
     full_lexi.add_argument('--pop', default=4, type=int, help='Population size')
     full_lexi.add_argument('--epsilon', type=float, required=True, help='Survival threshold')
-    full_lexi.add_argument('--mad', type='store_true', help='Use median absolute deviation for epsilon')
+    full_lexi.add_argument('--mad', action='store_true', help='Use median absolute deviation for epsilon')
     full_lexi.add_argument('--lrmax', default=0.1, type=float, help='Max learning rate for SGD (Lexi)')
     full_lexi.add_argument('--lrmin', default=0, type=float, help='Minimum learning rate for SGD (Lexi)')
     full_lexi.add_argument('--adamw', action='store_false', help='Use AdamW optimizer instead of SGD')
