@@ -180,6 +180,7 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+.DS_Store
 *.ipynb
 data/gradient-lexicase-benchmark
 checkpoints/

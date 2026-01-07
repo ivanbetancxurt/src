@@ -215,6 +215,7 @@ class NCA(th.nn.Module):
         self, 
         data_directory: str,
         epsilon: float,
+        use_mad: bool,
         epochs: int = 200, #! ATTENTION
         steps: int = 10, 
         trials: int = 128, 
@@ -291,6 +292,13 @@ class NCA(th.nn.Module):
                 if not use_sgd: schedulers[i].step()
 
             return children, child_losses
+
+        def mad(scores: list[float]) -> float:
+            '''
+                Compute median absolute deviation of childrens' scores to set epsilon.
+            '''
+            median = np.median(scores)
+            return np.median([abs(score - median) for score in scores])
         
         def select(children: list[NCA]) -> list[NCA]:
             '''
@@ -315,9 +323,11 @@ class NCA(th.nn.Module):
                 for child_idx in pool:
                     states = children[child_idx].rollout(state=x.unsqueeze(0), steps=steps, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=True)
                     _, score = children[child_idx].per_pixel_log_loss(states=states, target=y.unsqueeze(0))
-                    scores.append(score)
+                    scores.append(score.item())
                 
                 best = min(scores)
+                if use_mad: epsilon = mad(scores)
+
                 pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
                 print(f'==> {len(pool)} remaining...')
                 if len(pool) == 1: break
