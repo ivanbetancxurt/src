@@ -300,7 +300,7 @@ class NCA(th.nn.Module):
             median = np.median(scores)
             return np.median([abs(score - median) for score in scores])
         
-        def select(children: list[NCA]) -> list[NCA]:
+        def select(children: list[NCA], epsilon: float) -> list[NCA]:
             '''
                 Select a child NCA with lexicase selection and generate a new population.
             '''
@@ -326,6 +326,7 @@ class NCA(th.nn.Module):
                     scores.append(score.item())
                 
                 best = min(scores)
+
                 if use_mad: epsilon = mad(scores)
 
                 print(f'==> EPSILON: {epsilon}')
@@ -369,7 +370,7 @@ class NCA(th.nn.Module):
                 losses_per_gen.append({'generation': epoch + 1, 'child': i + 1, 'loss': losses[i]})
 
             print('==> Selecting parent for next generation...')
-            children = select(children)
+            children = select(children, epsilon)
             
         self.load_state_dict(children[0].state_dict())
         return losses_per_gen
