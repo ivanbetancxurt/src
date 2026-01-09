@@ -7,12 +7,21 @@ import csv
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, help='Dataset being evaluated on')
-    parser.add_argument('--run', type=int, help='Run number')
-    parser.add_argument('--bytask', action='store_true', help='Was trained by task')
-    parser.add_argument('--lexi', action='store_true', help='Was evolved with lexi')
-    parser.add_argument('--gens', type=int, help='Number of generations')
-    parser.add_argument('--epsilon', type=float, help='Survival threshold')
+    subparsers = parser.add_subparsers(dest='command', required=True)
+
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument('--dataset', type=str, required=True, help='Dataset being evaluated on')
+    common.add_argument('--run', type=int, required=True, help='Run number')
+
+    subparsers.add_parser('bytask', parents=[common], help='Trained NCA on one tasks')
+
+    subparsers.add_parser('full', parents=[common], help='Trained NCA on all tasks')
+
+    full_lexi = subparsers.add_parser('full_lexi', parents=[common], help='Trained NCA on all tasks with lexi')
+    full_lexi.add_argument('--gens', type=int, help='Number of generations')
+    full_lexi.add_argument('--epsilon', type=float, help='Survival threshold')
+    full_lexi.add_argument('--mad', action='store_true', help='Used median absolute deviation for epsilon')    
+    
     args = parser.parse_args()
 
     device = 'cuda' if th.cuda.is_available() else 'cpu'
@@ -44,24 +53,24 @@ def main():
         'mask_prob_high'
     ]
 
-    def record():
-        if args.bytask:
-            with open(f'../data/results/{args.dataset}_bytask/{args.dataset}_bytask_0{args.run}_results.csv', 'w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=fieldnames)
-                writer.writeheader()  
-                writer.writerows(data)
-        elif not args.lexi:
-            with open(f'../data/results/{args.dataset}_full/{args.dataset}_full_0{args.run}_results.csv', 'w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=fieldnames)
-                writer.writeheader()  
-                writer.writerows(data)
-
-        if args.lexi:
-            with open(f'../data/results/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_{args.epsilon}e)_results.csv', 'w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=lexi_fieldnames)
-                writer.writeheader()  
-                writer.writerows(data)
-
+    def record(command: str):
+        if command == 'bytask' or command == 'full':
+            with open(f'../data/results/{args.dataset}_{command}/{args.dataset}_{command}_{args.run}_results.csv', 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.DictWriter(f, fieldnames=fieldnames)
+                    writer.writeheader()  
+                    writer.writerows(data)
+        else:
+            if args.mad:
+                with open(f'../data/results/{args.dataset}_{command}/{args.dataset}_{command}_{args.run}_({args.gens}g_MAD)_results.csv', 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.DictWriter(f, fieldnames=lexi_fieldnames)
+                    writer.writeheader()  
+                    writer.writerows(data)
+            else:
+                with open(f'../data/results/{args.dataset}_{command}/{args.dataset}_{command}_{args.run}_({args.gens}g_{args.epsilon}e)_results.csv', 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.DictWriter(f, fieldnames=lexi_fieldnames)
+                    writer.writeheader()  
+                    writer.writerows(data)
+            
 
     def evaluate(model: NCA, configs: dict, task_num: int, dataset: str):
         '''
@@ -75,7 +84,7 @@ def main():
 
         res = model.evaluate(inputs=x.unsqueeze(0), targets=y.unsqueeze(0))
 
-        if args.lexi:
+        if args.command == 'full_lexi':
             data.append({
                 'task': task_num,
                 'solved': 'True' if res['exact_match_final_accuracy'] == 1.0 else 'False',
@@ -104,43 +113,43 @@ def main():
             })
 
     num_tasks = len(os.listdir(f'../data/{args.dataset}/training'))
-    if args.bytask:
+    model = NCA()
+    if args.command == 'bytask':
         for n in range(1, num_tasks + 1):
             ckpt = th.load(f'../checkpoints/{args.dataset}_bytask/0{args.run}/{args.dataset}_bytask{n}_0{args.run}.pth', map_location=th.device(device))
             configs = ckpt['configs']
             state = ckpt['model']
-            model = NCA()
             model.load_state_dict(state)
             model.to(device)
 
             evaluate(model=model, configs=configs, task_num=n, dataset=args.dataset)
 
-        record()
-    elif not args.lexi:
+        record(args.command)
+    elif args.command == 'full':
         ckpt = th.load(f'../checkpoints/{args.dataset}_full/{args.dataset}_full_0{args.run}.pth', map_location=th.device(device))
         configs = ckpt['configs']
         state = ckpt['model']
-        model = NCA()
         model.load_state_dict(state)
         model.to(device)
 
         for n in range(1, num_tasks + 1):
             evaluate(model=model, configs=configs, task_num=n, dataset=args.dataset)
 
-        record()
-        
-    if args.lexi:
-        ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_{args.epsilon}e).pth', map_location=th.device(device))
+        record(args.command)
+    elif args.command == 'full_lexi':
+        if args.mad:
+            ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_MAD).pth', map_location=th.device(device))
+        else:
+            ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_{args.epsilon}e).pth', map_location=th.device(device))
         configs = ckpt['configs']
         state = ckpt['model']
-        model = NCA()
         model.load_state_dict(state)
         model.to(device)
 
         for n in range(1, num_tasks + 1):
             evaluate(model=model, configs=configs, task_num=n, dataset=args.dataset)
         
-        record()
+        record(args.command)
 
 if __name__ == '__main__':
     main()
