@@ -144,6 +144,7 @@ def main():
             'configs': {
                 'n_hidden_channels': model.n_hidden_channels,
                 'temperature': model.temperature,
+                'pop_size': args.pop,
                 'steps': args.steps,
                 'trials': args.trials,
                 'learning_rate_max': args.lrmax,
