@@ -328,6 +328,7 @@ class NCA(th.nn.Module):
                 best = min(scores)
                 if use_mad: epsilon = mad(scores)
 
+                print(f'==> EPSILON: {epsilon}')
                 pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
                 print(f'==> {len(pool)} remaining...')
                 if len(pool) == 1: break
