@@ -42,7 +42,9 @@ def main():
     lexi_fieldnames = [
         'task', 
         'solved', 
-        'final_pixel_accuracy', 
+        'final_pixel_accuracy',
+        #'scored_with_avg', #! YOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+        'pop_size' 
         'n_hidden_channels',
         'temperature',
         'steps',
