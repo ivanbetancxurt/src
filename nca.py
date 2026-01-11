@@ -226,7 +226,7 @@ class NCA(th.nn.Module):
         data_directory: str,
         epsilon: float,
         use_mad: bool,
-        take_avg_loss: bool = False,
+        use_avg_loss: bool = False,
         epochs: int = 200, #! ATTENTION
         steps: int = 10, 
         trials: int = 128, 
@@ -327,7 +327,7 @@ class NCA(th.nn.Module):
                     step_losses, avg_score = children[child_idx].per_pixel_log_loss(states=states, target=y.unsqueeze(0))
                     final_score = step_losses[-1].item()
 
-                    if take_avg_loss:
+                    if use_avg_loss:
                         scores.append(avg_score.item())
                     else:
                         scores.append(final_score)
