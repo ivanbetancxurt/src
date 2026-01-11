@@ -226,6 +226,7 @@ class NCA(th.nn.Module):
         data_directory: str,
         epsilon: float,
         use_mad: bool,
+        take_avg_loss: bool = False,
         epochs: int = 200, #! ATTENTION
         steps: int = 10, 
         trials: int = 128, 
@@ -292,8 +293,6 @@ class NCA(th.nn.Module):
                     
                     child_losses.append(np.mean(losses))
 
-                if not use_sgd: schedulers[i].step()
-
             return children, child_losses
 
         def mad(scores: list[float]) -> float:
@@ -325,8 +324,13 @@ class NCA(th.nn.Module):
 
                 for child_idx in pool:
                     states = children[child_idx].rollout(state=x.unsqueeze(0), steps=steps, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=True)
-                    _, score = children[child_idx].per_pixel_log_loss(states=states, target=y.unsqueeze(0))
-                    scores.append(score.item())
+                    step_losses, avg_score = children[child_idx].per_pixel_log_loss(states=states, target=y.unsqueeze(0))
+                    final_score = step_losses[-1].item()
+
+                    if take_avg_loss:
+                        scores.append(avg_score.item())
+                    else:
+                        scores.append(final_score)
                 
                 best = min(scores)
 
