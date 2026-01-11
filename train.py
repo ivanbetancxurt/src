@@ -31,7 +31,6 @@ def main():
     full_lexi.add_argument('--mad', action='store_true', help='Use median absolute deviation for epsilon')
     full_lexi.add_argument('--lrmax', default=0.1, type=float, help='Max learning rate for SGD (Lexi)')
     full_lexi.add_argument('--lrmin', default=0, type=float, help='Minimum learning rate for SGD (Lexi)')
-    full_lexi.add_argument('--adamw', action='store_false', help='Use AdamW optimizer instead of SGD')
     full_lexi.add_argument('--test', action='store_true', help='Testing mode. Runs for 3 epochs.')
 
     args = parser.parse_args()
@@ -122,7 +121,6 @@ def main():
             mask_prob_low=args.mplow,
             mask_prob_high=args.mphigh,
             pop_size=args.pop,
-            use_sgd=args.adamw,
             one_run_test=args.test
         )
 

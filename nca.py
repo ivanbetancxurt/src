@@ -161,6 +161,16 @@ class NCA(th.nn.Module):
         avg_loss.backward()
         return avg_loss.item()
 
+    def calc_steps(self, steps: int, grid: th.FloatTensor, max_grid_area: int) -> int:
+        '''
+            For training by task, scale the allowed number of steps by the area of the grid.
+        '''
+        grid_area = grid.shape[0] * grid.shape[1]
+        ratio = (grid_area / max_grid_area) ** 0.5
+        scaled_steps = int(steps * ratio)
+        scaled_steps = max(scaled_steps, steps // 4)
+        return scaled_steps
+
     def fit(
         self, 
         data_directory: str, 
@@ -225,7 +235,6 @@ class NCA(th.nn.Module):
         mask_prob_high: float = 0.75, 
         force_sync: bool = False,
         pop_size: int = 4,
-        use_sgd: bool = True,
         rng_seed: int = 25,
         one_run_test: bool = False,
     ) -> list[dict]:
@@ -239,16 +248,10 @@ class NCA(th.nn.Module):
             '''
                 Train each child NCA on a disjoint subset of the data.
             '''
-            optimizers, schedulers = [], []
+            optimizers = []
             for child in children:
-                if use_sgd:
-                    optimizer = th.optim.SGD(child.parameters(), lr=cosine_annealing_lr(epoch=epoch, lr=lr_max, T_max=epochs, eta_min=lr_min), momentum=0.9, weight_decay=1e-4)
-                    optimizers.append(optimizer)
-                else:
-                    #optimizer = th.optim.AdamW(child.parameters(), lr=learning_rate)
-                    #scheduler = th.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0001 / learning_rate, total_iters=epochs)
-                    optimizers.append(optimizer)
-                    #schedulers.append(scheduler)
+                optimizer = th.optim.SGD(child.parameters(), lr=cosine_annealing_lr(epoch=epoch, lr=lr_max, T_max=epochs, eta_min=lr_min), momentum=0.9, weight_decay=1e-4)
+                optimizers.append(optimizer)
             
             task_indices = list(range(len(tasks)))
             rand_partition = random.Random(partition_seed)
@@ -374,16 +377,6 @@ class NCA(th.nn.Module):
             
         self.load_state_dict(children[0].state_dict())
         return losses_per_gen
-
-    def calc_steps(self, steps: int, grid: th.FloatTensor, max_grid_area: int) -> int:
-        '''
-            For training by task, scale the allowed number of steps by the area of the grid.
-        '''
-        grid_area = grid.shape[0] * grid.shape[1]
-        ratio = (grid_area / max_grid_area) ** 0.5
-        scaled_steps = int(steps * ratio)
-        scaled_steps = max(scaled_steps, steps // 4)
-        return scaled_steps
 
     def fit_by_task(
         self, 
