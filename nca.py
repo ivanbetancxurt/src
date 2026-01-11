@@ -301,6 +301,17 @@ class NCA(th.nn.Module):
             '''
             median = np.median(scores)
             return np.median([abs(score - median) for score in scores])
+
+        def print_stats(epsilon: float, use_mad: bool, scores: list):
+            '''
+                Print epsilon and each child's score.
+            '''
+            print('---SCORES---')
+            for score in scores:
+                print(score)
+
+            print('------------')
+            print(f'==> EPSILON (w/ MAD: {use_mad}): {epsilon}')
         
         def select(children: list[NCA], epsilon: float) -> list[NCA]:
             '''
@@ -336,7 +347,8 @@ class NCA(th.nn.Module):
 
                 if use_mad: epsilon = mad(scores)
 
-                print(f'==> EPSILON: {epsilon}')
+                print_stats(epsilon, use_mad, scores)
+
                 pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
                 print(f'==> {len(pool)} remaining...')
                 if len(pool) == 1: break
