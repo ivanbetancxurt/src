@@ -44,7 +44,7 @@ def main():
         'solved', 
         'final_pixel_accuracy',
         #'scored_with_avg', #! YOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-        'pop_size' 
+        'pop_size', 
         'n_hidden_channels',
         'temperature',
         'steps',
