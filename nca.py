@@ -227,6 +227,7 @@ class NCA(th.nn.Module):
         epsilon: float,
         use_mad: bool,
         use_avg_loss: bool = False,
+        use_pixel_cases: bool = False,
         epochs: int = 200, #! ATTENTION
         steps: int = 10, 
         trials: int = 128, 
