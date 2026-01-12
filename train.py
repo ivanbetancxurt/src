@@ -56,7 +56,7 @@ def main():
             mask_prob_high=args.mphigh
         )
 
-        with open(f'../data/losses/{args.dataset}_bytask/0{args.run}/{args.name}_losses.csv', 'w', newline='') as f:
+        with open(f'../data/losses/{args.dataset}_bytask/{args.run}/{args.name}_losses.csv', 'w', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(['epoch', 'loss'])
             for epoch, loss in enumerate(losses, start=1):
@@ -75,7 +75,7 @@ def main():
             },
             'epochs': args.epochs,
             'device': str(device)
-        }, f'../checkpoints/{args.dataset}_bytask/0{args.run}/{args.name}.pth')
+        }, f'../checkpoints/{args.dataset}_bytask/{args.run}/{args.name}.pth')
 
     elif args.command == 'full':
         losses = model.fit(
