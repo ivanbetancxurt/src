@@ -43,7 +43,7 @@ def main():
         'task', 
         'solved', 
         'final_pixel_accuracy',
-        #'scored_with_avg', #! YOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+        'scored_with_avg',
         'pop_size', 
         'n_hidden_channels',
         'temperature',
@@ -91,7 +91,7 @@ def main():
                 'task': task_num,
                 'solved': 'True' if res['exact_match_final_accuracy'] == 1.0 else 'False',
                 'final_pixel_accuracy': res['pixel_final_accuracy'],
-                #'scored_with_avg': configs['scored_with_avg'], #! YOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+                'scored_with_avg': configs['scored_with_avg'],
                 'pop_size': configs['pop_size'],
                 'n_hidden_channels': configs['n_hidden_channels'],
                 'temperature': configs['temperature'],
