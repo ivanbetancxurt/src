@@ -120,7 +120,7 @@ def main():
     model = NCA()
     if args.command == 'bytask':
         for n in range(1, num_tasks + 1):
-            ckpt = th.load(f'../checkpoints/{args.dataset}_bytask/0{args.run}/{args.dataset}_bytask{n}_0{args.run}.pth', map_location=th.device(device))
+            ckpt = th.load(f'../checkpoints/{args.dataset}_bytask/{args.run}/{args.dataset}_bytask{n}_{args.run}.pth', map_location=th.device(device))
             configs = ckpt['configs']
             state = ckpt['model']
             model.load_state_dict(state)
@@ -130,7 +130,7 @@ def main():
 
         record(args.command)
     elif args.command == 'full':
-        ckpt = th.load(f'../checkpoints/{args.dataset}_full/{args.dataset}_full_0{args.run}.pth', map_location=th.device(device))
+        ckpt = th.load(f'../checkpoints/{args.dataset}_full/{args.dataset}_full_{args.run}.pth', map_location=th.device(device))
         configs = ckpt['configs']
         state = ckpt['model']
         model.load_state_dict(state)
