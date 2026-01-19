@@ -1,7 +1,7 @@
 #!/bin/sh
-#SBATCH --job-name=arc2_bytask131_1
+#SBATCH --job-name=arc2_bytask132_1
 #SBATCH --cpus-per-task=1
-#SBATCH --partition=cpu-q
+#SBATCH --partition=cpu-dense-preempt-q
 #SBATCH --ntasks=1
 #SBATCH --mem=8G
 #SBATCH --time=07-00:00:00
@@ -16,4 +16,4 @@ module load pytorch-extra-py39-cuda11.8-gcc11
 
 mkdir -p logs/train ../checkpoints
 
-python3 ../train.py bytask --name "$SLURM_JOB_NAME" --dataset "arc2" --run 1 --task 131
+python3 ../train.py bytask --name "$SLURM_JOB_NAME" --dataset "arc2" --run 1 --task 132
