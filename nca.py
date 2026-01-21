@@ -304,7 +304,7 @@ class NCA(th.nn.Module):
             median = np.median(scores)
             return np.median([abs(score - median) for score in scores])
 
-        def print_stats(epsilon: float, use_mad: bool, scores: list):
+        def print_stats(scores: list):
             '''
                 Print epsilon and each child's score.
             '''
