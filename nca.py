@@ -355,7 +355,7 @@ class NCA(th.nn.Module):
                 else:
                     pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
 
-                print_stats(epsilon, epsilon_scheme, scores)
+                print_stats(scores)
 
                 print(f'==> {len(pool)} remaining...')
                 if len(pool) == 1: break
