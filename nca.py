@@ -72,7 +72,7 @@ class NCA(th.nn.Module):
         draw.line([(0, 0), (img_w - 1, 0)], fill=(0, 0, 0), width=1)
         draw.line([(0, img_h - 1), (img_w - 1, img_h - 1)], fill=(0, 0, 0), width=1)
 
-        canvas.save(f'visualizations/{int(time())}.png')
+        return canvas
 
     def encode(self, grids: th.LongTensor) -> th.FloatTensor:
         '''

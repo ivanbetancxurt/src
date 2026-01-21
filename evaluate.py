@@ -146,7 +146,8 @@ def main():
         model.to(device)
 
         if args.variant == 'single':
-            evaluate(model=model, configs=configs, task_num=args.task, dataset=args.dataset, generate_img=True)
+            img = evaluate(model=model, configs=configs, task_num=args.task, dataset=args.dataset, generate_img=True)
+            img.save(f'../visualizations/{args.dataset}_full_task{args.tasg}_output.png')
         else:
             for n in range(1, num_tasks + 1):
                 evaluate(model=model, configs=configs, task_num=n, dataset=args.dataset)
@@ -163,7 +164,8 @@ def main():
         model.to(device)
 
         if args.single:
-            evaluate(model=model, configs=configs, task_num=args.task, dataset=args.dataset, generate_img=True)
+            img = evaluate(model=model, configs=configs, task_num=args.task, dataset=args.dataset, generate_img=True)
+            img.save(f'../visualizations/{args.dataset}_full_lexi_task{args.tasg}_output.png')
         else:
             for n in range(1, num_tasks + 1):
                 evaluate(model=model, configs=configs, task_num=n, dataset=args.dataset)
