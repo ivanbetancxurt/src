@@ -7,6 +7,7 @@ import json
 import random
 from utils import progress_bar, render_grid_image
 from typing import Optional
+import math
 
 class PerPixelLayerNorm(th.nn.Module):
     def __init__(self, n_channels):
@@ -225,7 +226,7 @@ class NCA(th.nn.Module):
         self, 
         data_directory: str,
         epsilon: float,
-        use_mad: bool,
+        epsilon_scheme: str = 'fixed',  # 'fixed' | 'mad' | 'bh'
         use_avg_loss: bool = False,
         use_pixel_cases: bool = False,
         epochs: int = 200, #! ATTENTION
@@ -310,9 +311,7 @@ class NCA(th.nn.Module):
             print('---SCORES---')
             for score in scores:
                 print(score)
-
             print('------------')
-            print(f'==> EPSILON (w/ MAD: {use_mad}): {epsilon}')
         
         def select(children: list[NCA], epsilon: float) -> list[NCA]:
             '''
@@ -346,11 +345,18 @@ class NCA(th.nn.Module):
                 
                 best = min(scores)
 
-                if use_mad: epsilon = mad(scores)
+                if epsilon_scheme == 'mad':
+                    epsilon = mad(scores)
+                    pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
+                elif epsilon_scheme == 'bh':
+                    k = max(1, math.ceil(len(pool) / 2))
+                    kth_smallest_score = sorted(scores)[k - 1]
+                    pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= kth_smallest_score]
+                else:
+                    pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
 
-                print_stats(epsilon, use_mad, scores)
+                print_stats(epsilon, epsilon_scheme, scores)
 
-                pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
                 print(f'==> {len(pool)} remaining...')
                 if len(pool) == 1: break
                     

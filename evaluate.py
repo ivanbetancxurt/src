@@ -27,7 +27,7 @@ def main():
     full_lexi_sub = full_lexi.add_subparsers(dest='variant')
     full_lexi.add_argument('--gens', type=int, help='Number of generations')
     full_lexi.add_argument('--epsilon', type=float, help='Survival threshold')
-    full_lexi.add_argument('--mad', action='store_true', help='Used median absolute deviation for epsilon')
+    full_lexi.add_argument('--escheme', type=str, required=True, help='Epsilon selection scheme')
     full_lexi_single = full_lexi_sub.add_parser('single', help='Evaluate a single task')
     full_lexi_single.add_argument('--task', type=int, required=True)
     full_lexi_single.add_argument('--cell', type=int, default=24, help='Cell size')
@@ -72,16 +72,16 @@ def main():
                     writer.writeheader()  
                     writer.writerows(data)
         else:
-            if args.mad:
-                with open(f'../data/results/{args.dataset}_{command}/{args.dataset}_{command}_{args.run}_({args.gens}g_MAD)_results.csv', 'w', newline='', encoding='utf-8') as f:
-                    writer = csv.DictWriter(f, fieldnames=lexi_fieldnames)
-                    writer.writeheader()  
-                    writer.writerows(data)
+            if args.escheme == 'mad':
+                out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_MAD)_results.csv'
+            elif args.escheme == 'bh':
+                out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_BH)_results.csv'
             else:
-                with open(f'../data/results/{args.dataset}_{command}/{args.dataset}_{command}_{args.run}_({args.gens}g_{args.epsilon}e)_results.csv', 'w', newline='', encoding='utf-8') as f:
-                    writer = csv.DictWriter(f, fieldnames=lexi_fieldnames)
-                    writer.writeheader()  
-                    writer.writerows(data)
+                out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_{args.epsilon}e)_results.csv'
+            with open(out, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=lexi_fieldnames)
+                writer.writeheader()
+                writer.writerows(data)
             
 
     def evaluate(model: NCA, configs: dict, task_num: int, dataset: str, generate_img: bool = False, cell_size: int = 24):
@@ -159,8 +159,10 @@ def main():
 
             record(args.command)
     elif args.command == 'full_lexi':
-        if args.mad:
+        if args.escheme == 'mad':
             ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_MAD).pth', map_location=th.device(device))
+        elif args.escheme == 'bh':
+            ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_BH).pth', map_location=th.device(device))
         else:
             ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_{args.epsilon}e).pth', map_location=th.device(device))
         configs = ckpt['configs']
