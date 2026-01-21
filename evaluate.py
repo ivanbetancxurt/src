@@ -150,7 +150,7 @@ def main():
 
         if args.variant == 'single':
             img = evaluate(model=model, configs=configs, task_num=args.task, dataset=args.dataset, generate_img=True)
-            img.save(f'../visualizations/{args.dataset}_full_task{args.tasg}_output.png')
+            img.save(f'../visualizations/{args.dataset}_full_task{args.task}_output.png')
         else:
             for n in range(1, num_tasks + 1):
                 evaluate(model=model, configs=configs, task_num=n, dataset=args.dataset)
@@ -168,7 +168,7 @@ def main():
 
         if args.variant == 'single':
             img = evaluate(model=model, configs=configs, task_num=args.task, dataset=args.dataset, generate_img=True)
-            img.save(f'../visualizations/{args.dataset}_full_lexi_task{args.tasg}_output.png')
+            img.save(f'../visualizations/{args.dataset}_full_lexi_task{args.task}_output.png')
         else:
             for n in range(1, num_tasks + 1):
                 evaluate(model=model, configs=configs, task_num=n, dataset=args.dataset)
