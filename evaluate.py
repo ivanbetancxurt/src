@@ -94,35 +94,36 @@ def main():
 
         res = model.evaluate(inputs=x.unsqueeze(0), targets=y.unsqueeze(0), generate_img=generate_img)
 
-        if args.command == 'full_lexi':
-            data.append({
-                'task': task_num,
-                'solved': 'True' if res['exact_match_final_accuracy'] == 1.0 else 'False',
-                'final_pixel_accuracy': res['pixel_final_accuracy'],
-                'scored_with_avg': configs['scored_with_avg'],
-                'pop_size': configs['pop_size'],
-                'n_hidden_channels': configs['n_hidden_channels'],
-                'temperature': configs['temperature'],
-                'steps': configs['steps'],
-                'trials': configs['trials'],
-                'learning_rate_max': configs['learning_rate_max'],
-                'learning_rate_min': configs['learning_rate_min'],
-                'mask_prob_low': configs['mask_prob_low'],
-                'mask_prob_high': configs['mask_prob_high']
-            })
-        else:
-            data.append({
-                'task': task_num,
-                'solved': 'True' if res['exact_match_final_accuracy'] == 1.0 else 'False',
-                'final_pixel_accuracy': res['pixel_final_accuracy'],
-                'n_hidden_channels': configs['n_hidden_channels'],
-                'temperature': configs['temperature'],
-                'steps': configs['steps'],
-                'trials': configs['trials'],
-                'learning_rate': configs['learning_rate'],
-                'mask_prob_low': configs['mask_prob_low'],
-                'mask_prob_high': configs['mask_prob_high']
-            })
+        if not generate_img:
+            if args.command == 'full_lexi':
+                data.append({
+                    'task': task_num,
+                    'solved': 'True' if res['exact_match_final_accuracy'] == 1.0 else 'False',
+                    'final_pixel_accuracy': res['pixel_final_accuracy'],
+                    'scored_with_avg': configs['scored_with_avg'],
+                    'pop_size': configs['pop_size'],
+                    'n_hidden_channels': configs['n_hidden_channels'],
+                    'temperature': configs['temperature'],
+                    'steps': configs['steps'],
+                    'trials': configs['trials'],
+                    'learning_rate_max': configs['learning_rate_max'],
+                    'learning_rate_min': configs['learning_rate_min'],
+                    'mask_prob_low': configs['mask_prob_low'],
+                    'mask_prob_high': configs['mask_prob_high']
+                })
+            else:
+                data.append({
+                    'task': task_num,
+                    'solved': 'True' if res['exact_match_final_accuracy'] == 1.0 else 'False',
+                    'final_pixel_accuracy': res['pixel_final_accuracy'],
+                    'n_hidden_channels': configs['n_hidden_channels'],
+                    'temperature': configs['temperature'],
+                    'steps': configs['steps'],
+                    'trials': configs['trials'],
+                    'learning_rate': configs['learning_rate'],
+                    'mask_prob_low': configs['mask_prob_low'],
+                    'mask_prob_high': configs['mask_prob_high']
+                })
 
     num_tasks = len(os.listdir(f'../data/{args.dataset}/training'))
     model = NCA()
