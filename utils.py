@@ -1,5 +1,7 @@
 import sys
 import time
+from PIL import Image, ImageDraw
+import numpy as np
 
 term_width = 0
 TOTAL_BAR_LENGTH = 65.
@@ -81,3 +83,45 @@ def progress_bar(current, total, msg=None):
     else:
         sys.stdout.write('\n')
     sys.stdout.flush()
+
+def render_grid_image(self, grid_np: np.ndarray, cell_size: int = 24) -> Image.Image:
+    '''
+    Render and save a single integer grid to an RGB image.
+    '''
+    palette = [
+        (0, 0, 0),        # 0 black
+        (0, 0, 255),      # 1 blue
+        (255, 0, 0),      # 2 red
+        (0, 255, 0),      # 3 green
+        (255, 255, 0),    # 4 yellow
+        (128, 128, 128),  # 5 gray
+        (255, 0, 255),    # 6 magenta
+        (255, 165, 0),    # 7 orange
+        (0, 255, 255),    # 8 cyan
+        (255, 255, 255),  # 9 white
+    ]
+
+    h, w = int(grid_np.shape[0]), int(grid_np.shape[1])
+    img_w, img_h = w * cell_size, h * cell_size
+    canvas = Image.new("RGB", (img_w, img_h), (255, 255, 255))
+    draw = ImageDraw.Draw(canvas)
+
+    for y in range(h):
+        for x in range(w):
+            color = palette[int(grid_np[y, x])]
+            x0, y0 = x * cell_size, y * cell_size
+            x1, y1 = x0 + cell_size - 1, y0 + cell_size - 1
+            draw.rectangle([x0, y0, x1, y1], fill=color)
+
+    for x in range(1, w):
+        X = x * cell_size
+        draw.line([(X, 0), (X, img_h - 1)], fill=(0, 0, 0), width=1)
+    for y in range(1, h):
+        Y = y * cell_size
+        draw.line([(0, Y), (img_w - 1, Y)], fill=(0, 0, 0), width=1)
+    draw.line([(0, 0), (0, img_h - 1)], fill=(0, 0, 0), width=1)
+    draw.line([(img_w - 1, 0), (img_w - 1, img_h - 1)], fill=(0, 0, 0), width=1)
+    draw.line([(0, 0), (img_w - 1, 0)], fill=(0, 0, 0), width=1)
+    draw.line([(0, img_h - 1), (img_w - 1, img_h - 1)], fill=(0, 0, 0), width=1)
+
+    return canvas
