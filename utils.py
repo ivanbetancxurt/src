@@ -84,7 +84,7 @@ def progress_bar(current, total, msg=None):
         sys.stdout.write('\n')
     sys.stdout.flush()
 
-def render_grid_image(self, grid_np: np.ndarray, cell_size: int = 24) -> Image.Image:
+def render_grid_image(grid_np: np.ndarray, cell_size: int = 24) -> Image.Image:
     '''
     Render and save a single integer grid to an RGB image.
     '''
