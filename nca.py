@@ -7,6 +7,8 @@ import json
 import random
 from utils import progress_bar
 from typing import Optional
+from PIL import Image, ImageDraw
+from time import time
 
 class PerPixelLayerNorm(th.nn.Module):
     def __init__(self, n_channels):
@@ -29,6 +31,48 @@ class NCA(th.nn.Module):
         self.linear1 = th.nn.Conv2d(in_channels=(10 + self.n_channels), out_channels=self.n_channels, kernel_size=1)
         self.linear2 = th.nn.Conv2d(in_channels=self.n_channels, out_channels=self.n_channels, kernel_size=1)
         self.temperature = temperature
+    
+    def render_grid_image(self, grid_np: np.ndarray, cell_size: int = 24) -> Image.Image:
+        '''
+        Render and save a single integer grid to an RGB image.
+        '''
+        palette = [
+            (0, 0, 0),        # 0 black
+            (0, 0, 255),      # 1 blue
+            (255, 0, 0),      # 2 red
+            (0, 255, 0),      # 3 green
+            (255, 255, 0),    # 4 yellow
+            (128, 128, 128),  # 5 gray
+            (255, 0, 255),    # 6 magenta
+            (255, 165, 0),    # 7 orange
+            (0, 255, 255),    # 8 cyan
+            (255, 255, 255),  # 9 white
+        ]
+
+        h, w = int(grid_np.shape[0]), int(grid_np.shape[1])
+        img_w, img_h = w * cell_size, h * cell_size
+        canvas = Image.new("RGB", (img_w, img_h), (255, 255, 255))
+        draw = ImageDraw.Draw(canvas)
+
+        for y in range(h):
+            for x in range(w):
+                color = palette[int(grid_np[y, x])]
+                x0, y0 = x * cell_size, y * cell_size
+                x1, y1 = x0 + cell_size - 1, y0 + cell_size - 1
+                draw.rectangle([x0, y0, x1, y1], fill=color)
+
+        for x in range(1, w):
+            X = x * cell_size
+            draw.line([(X, 0), (X, img_h - 1)], fill=(0, 0, 0), width=1)
+        for y in range(1, h):
+            Y = y * cell_size
+            draw.line([(0, Y), (img_w - 1, Y)], fill=(0, 0, 0), width=1)
+        draw.line([(0, 0), (0, img_h - 1)], fill=(0, 0, 0), width=1)
+        draw.line([(img_w - 1, 0), (img_w - 1, img_h - 1)], fill=(0, 0, 0), width=1)
+        draw.line([(0, 0), (img_w - 1, 0)], fill=(0, 0, 0), width=1)
+        draw.line([(0, img_h - 1), (img_w - 1, img_h - 1)], fill=(0, 0, 0), width=1)
+
+        canvas.save(f'visualizations/{int(time())}.png')
 
     def encode(self, grids: th.LongTensor) -> th.FloatTensor:
         '''
@@ -448,7 +492,7 @@ class NCA(th.nn.Module):
         return epoch_losses
 
     @th.no_grad()
-    def evaluate(self, inputs: th.LongTensor, targets: th.LongTensor, steps: int = 10) -> dict:
+    def evaluate(self, inputs: th.LongTensor, targets: th.LongTensor, steps: int = 10, generate_img: bool = False):
         '''
             Evaluate learned rules on new data.
         '''
@@ -465,10 +509,16 @@ class NCA(th.nn.Module):
             exact_match_accs.append(eq.float().mean().item())
             pixel_accs.append((pred == targets).float().mean().item())
         
+        final_state = self.decode(states[-1])
+
+        if generate_img:
+            grid_np = final_state[0].to('cpu').numpy().astype(np.uint8)
+            return self.render_grid_image(grid_np=grid_np, cell_size=24)
+
         return {
             'exact_match_final_accuracy': exact_match_accs[-1],
             'exact_match_per_step_accuracies': exact_match_accs,
             'pixel_final_accuracy': pixel_accs[-1],
             'pixel_per_step_accuracies': pixel_accs,
-            'final_state': self.decode(states[-1])
+            'final_state': final_state,
         }

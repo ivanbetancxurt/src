@@ -186,3 +186,4 @@ data/gradient-lexicase-benchmark
 checkpoints/
 kev
 lexi.py
+visualizations/
