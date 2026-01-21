@@ -21,6 +21,7 @@ def main():
     full_sub = full.add_subparsers(dest='variant')
     full_single = full_sub.add_parser('single', help='Evaluate a single task')
     full_single.add_argument('--task', type=int, required=True, help='Task being evaluated on')
+    full_single.add_argument('--cell', type=int, default=24, help='Cell size')
 
     full_lexi = subparsers.add_parser('full_lexi', parents=[common], help='Trained NCA on all tasks with lexi')
     full_lexi_sub = full_lexi.add_subparsers(dest='variant')
@@ -29,6 +30,7 @@ def main():
     full_lexi.add_argument('--mad', action='store_true', help='Used median absolute deviation for epsilon')
     full_lexi_single = full_lexi_sub.add_parser('single', help='Evaluate a single task')
     full_lexi_single.add_argument('--task', type=int, required=True)
+    full_lexi_single.add_argument('--cell', type=int, default=24, help='Cell size')
     
     args = parser.parse_args()
 
@@ -82,7 +84,7 @@ def main():
                     writer.writerows(data)
             
 
-    def evaluate(model: NCA, configs: dict, task_num: int, dataset: str, generate_img: bool = False):
+    def evaluate(model: NCA, configs: dict, task_num: int, dataset: str, generate_img: bool = False, cell_size: int = 24):
         '''
             Evaluate the model on the specified task.
         '''
@@ -92,7 +94,7 @@ def main():
         x = th.tensor(task['input'])
         y = th.tensor(task['output'])
 
-        res = model.evaluate(inputs=x.unsqueeze(0), targets=y.unsqueeze(0), generate_img=generate_img)
+        res = model.evaluate(inputs=x.unsqueeze(0), targets=y.unsqueeze(0), generate_img=generate_img, cell_size=cell_size)
 
         if not generate_img:
             if args.command == 'full_lexi':
@@ -149,7 +151,7 @@ def main():
         model.to(device)
 
         if args.variant == 'single':
-            img = evaluate(model=model, configs=configs, task_num=args.task, dataset=args.dataset, generate_img=True)
+            img = evaluate(model=model, configs=configs, task_num=args.task, dataset=args.dataset, generate_img=True, cell_size=args.cell)
             img.save(f'../visualizations/{args.dataset}_full_task{args.task}_output.png')
         else:
             for n in range(1, num_tasks + 1):
@@ -167,7 +169,7 @@ def main():
         model.to(device)
 
         if args.variant == 'single':
-            img = evaluate(model=model, configs=configs, task_num=args.task, dataset=args.dataset, generate_img=True)
+            img = evaluate(model=model, configs=configs, task_num=args.task, dataset=args.dataset, generate_img=True, cell_size=args.cell)
             img.save(f'../visualizations/{args.dataset}_full_lexi_task{args.task}_output.png')
         else:
             for n in range(1, num_tasks + 1):

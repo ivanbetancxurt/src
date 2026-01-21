@@ -448,7 +448,7 @@ class NCA(th.nn.Module):
         return epoch_losses
 
     @th.no_grad()
-    def evaluate(self, inputs: th.LongTensor, targets: th.LongTensor, steps: int = 10, generate_img: bool = False):
+    def evaluate(self, inputs: th.LongTensor, targets: th.LongTensor, steps: int = 10, generate_img: bool = False, cell_size: int = 24):
         '''
             Evaluate learned rules on new data.
         '''
@@ -469,7 +469,7 @@ class NCA(th.nn.Module):
 
         if generate_img:
             grid_np = final_state[0].to('cpu').numpy().astype(np.uint8)
-            return render_grid_image(grid_np=grid_np, cell_size=24)
+            return render_grid_image(grid_np=grid_np, cell_size=cell_size)
 
         return {
             'exact_match_final_accuracy': exact_match_accs[-1],
