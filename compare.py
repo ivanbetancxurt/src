@@ -59,6 +59,18 @@ def full_lexi_to_full_lexi(dataset: str, full_run: int, full_lexi_run: int, gene
     
     print(scores)
 
+def generate_table(dataset: str, full_run: int, full_lexi_run: int, generations: int):
+    '''
+        Generate table with comparison metrics for all models.
+    '''
+
+    fieldnames = [
+        'epsilon_scheme',
+        'prop_tasks_improved',
+        
+    ]
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -80,6 +92,9 @@ if __name__ == '__main__':
     full_lexi_to_full_lexi_parser.add_argument('--gens', type=int, help='Number of generations lexi model was evolved')
     full_lexi_to_full_lexi_parser.add_argument('--epsilons', nargs='+', type=float, help='Which values of epsilon the lexi models were trained with')
 
+    table_parser = subparsers.add_parser('table', parents=[common])
+    table_parser.add_argument('--gens', type=int, help='Number of generations lexi model was evolved')
+
     args = parser.parse_args()
 
     if args.command == 'full_full_lexi':
@@ -99,3 +114,4 @@ if __name__ == '__main__':
             generations=args.gens,
             epsilons=args.epsilons
         )
+    elif args.command == 'table':
