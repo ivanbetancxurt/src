@@ -147,7 +147,6 @@ def main():
 
         if args.variant == 'single':
             evaluate(model=model, configs=configs, task_num=args.task, dataset=args.dataset, generate_img=True)
-
         else:
             for n in range(1, num_tasks + 1):
                 evaluate(model=model, configs=configs, task_num=n, dataset=args.dataset)
@@ -163,10 +162,13 @@ def main():
         model.load_state_dict(state)
         model.to(device)
 
-        for n in range(1, num_tasks + 1):
-            evaluate(model=model, configs=configs, task_num=n, dataset=args.dataset)
-        
-        record(args.command)
+        if args.single:
+            evaluate(model=model, configs=configs, task_num=args.task, dataset=args.dataset, generate_img=True)
+        else:
+            for n in range(1, num_tasks + 1):
+                evaluate(model=model, configs=configs, task_num=n, dataset=args.dataset)
+            
+            record(args.command)
 
 
 if __name__ == '__main__':

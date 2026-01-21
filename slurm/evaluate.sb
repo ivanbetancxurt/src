@@ -1,5 +1,5 @@
 #!/bin/sh
-#SBATCH --job-name=eval_arc2_full_1
+#SBATCH --job-name=eval_arc1_full_single_task122_1
 #SBATCH --partition=gpu-a5000-q
 #SBATCH --gres=gpu:a5000:1
 #SBATCH --cpus-per-task=8
@@ -16,4 +16,4 @@ module load pytorch-extra-py39-cuda11.8-gcc11
 
 mkdir -p logs/eval
 
-python3 ../evaluate.py full --dataset "arc2" --run 1 
+python3 ../evaluate.py full --dataset "arc1" --run 1 single --task 122
