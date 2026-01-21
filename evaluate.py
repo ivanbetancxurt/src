@@ -124,6 +124,8 @@ def main():
                     'mask_prob_low': configs['mask_prob_low'],
                     'mask_prob_high': configs['mask_prob_high']
                 })
+        else:
+            return res
 
     num_tasks = len(os.listdir(f'../data/{args.dataset}/training'))
     model = NCA()
@@ -164,7 +166,7 @@ def main():
         model.load_state_dict(state)
         model.to(device)
 
-        if args.single:
+        if args.variant == 'single':
             img = evaluate(model=model, configs=configs, task_num=args.task, dataset=args.dataset, generate_img=True)
             img.save(f'../visualizations/{args.dataset}_full_lexi_task{args.tasg}_output.png')
         else:
