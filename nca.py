@@ -469,7 +469,7 @@ class NCA(th.nn.Module):
 
         if generate_img:
             grid_np = final_state[0].to('cpu').numpy().astype(np.uint8)
-            return self.render_grid_image(grid_np=grid_np, cell_size=24)
+            return render_grid_image(grid_np=grid_np, cell_size=24)
 
         return {
             'exact_match_final_accuracy': exact_match_accs[-1],
