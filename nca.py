@@ -471,7 +471,8 @@ class NCA(th.nn.Module):
             exact_match_accs.append(eq.float().mean().item())
             pixel_accs.append((pred == targets).float().mean().item())
         
-        final_state = self.decode(states[-1])
+        final_state_encoded = states[-1]
+        final_state = self.decode(final_state_encoded)
 
         if generate_img:
             grid_np = final_state[0].to('cpu').numpy().astype(np.uint8)
@@ -482,5 +483,6 @@ class NCA(th.nn.Module):
             'exact_match_per_step_accuracies': exact_match_accs,
             'pixel_final_accuracy': pixel_accs[-1],
             'pixel_per_step_accuracies': pixel_accs,
+            'final_state_encoded': final_state_encoded,
             'final_state': final_state,
         }
