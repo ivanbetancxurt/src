@@ -63,7 +63,7 @@ def full_lexi_to_full_lexi(dataset: str, full_run: int, full_lexi_run: int, gene
     
     print(scores)
 
-def _parse_scheme(name: str, generations: int) -> str | None:
+def _parse_scheme(name: str, generations: int):
     m = re.search(rf"\(({generations})g_([^)]+)\)\.csv$", name)
     if not m:
         return None
@@ -81,7 +81,7 @@ def generate_table(dataset: str, full_run: int, full_lexi_run: int, generations:
         if not name.startswith(f"{full_run}_to_{full_lexi_run}_") or f"({generations}g_" not in name:
             continue
 
-        scheme = _parse_scheme(name, full_run, full_lexi_run, generations)
+        scheme = _parse_scheme(name, generations)
 
         if scheme is None:
             continue
