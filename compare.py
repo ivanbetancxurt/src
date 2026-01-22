@@ -1,5 +1,9 @@
+import os
 import argparse
 import csv
+from statistics import mean, median, pstdev
+import re
+from collections import defaultdict
 
 def full_to_full_lexi(dataset: str, full_run: int, full_lexi_run: int, generations: int, epsilon: float, escheme: str):
     '''
@@ -59,17 +63,61 @@ def full_lexi_to_full_lexi(dataset: str, full_run: int, full_lexi_run: int, gene
     
     print(scores)
 
+def _parse_scheme(name: str, generations: int) -> str | None:
+    m = re.search(rf"\(({generations})g_([^)]+)\)\.csv$", name)
+    if not m:
+        return None
+    token = m.group(2)
+    return token
+
 def generate_table(dataset: str, full_run: int, full_lexi_run: int, generations: int):
     '''
         Generate table with comparison metrics for all models.
     '''
+    full_to_full_lexi_dir = f'data/results/{dataset}_comparisons/full_to_full_lexi'
+    by_scheme = defaultdict(list)
+
+    for name in os.listdir(full_to_full_lexi_dir):
+        if not name.startswith(f"{full_run}_to_{full_lexi_run}_") or f"({generations}g_" not in name:
+            continue
+
+        scheme = _parse_scheme(name, full_run, full_lexi_run, generations)
+
+        if scheme is None:
+            continue
+
+        with open(os.path.join(full_to_full_lexi_dir, name), newline='', encoding='utf-8') as f:
+            deltas = [float(r['accuracy_delta']) for r in csv.DictReader(f)]
+
+        by_scheme[scheme] = deltas
 
     fieldnames = [
         'epsilon_scheme',
         'prop_tasks_improved',
-        
+        'avg_acc_delta',
+        'median_acc_delta',
+        'std',
     ]
 
+    rows = []
+    for scheme, deltas in sorted(by_scheme.items(), key=lambda kv: kv[0]):
+        prop_improved = sum(1 for x in deltas if x > 0) / len(deltas)
+        avg = mean(deltas)
+        med = median(deltas)
+        std = pstdev(deltas)
+
+        rows.append({
+            'epsilon_scheme': scheme,
+            'prop_tasks_improved': f"{prop_improved:.4f}",
+            'avg_acc_delta': f"{avg:.4f}",
+            'median_acc_delta': f"{med:.4f}",
+            'std': f"{std:.4f}",
+        })
+
+    with open(f"data/results/{dataset}_comparisons/{dataset}_run{full_lexi_run}_summary.csv", 'w', newline='', encoding='utf-8') as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w.writeheader()
+        w.writerows(rows)
 
 
 if __name__ == '__main__':
@@ -93,7 +141,9 @@ if __name__ == '__main__':
     full_lexi_to_full_lexi_parser.add_argument('--epsilons', nargs='+', type=float, help='Which values of epsilon the lexi models were trained with')
 
     table_parser = subparsers.add_parser('table', parents=[common])
-    table_parser.add_argument('--gens', type=int, help='Number of generations lexi model was evolved')
+    table_parser.add_argument('--fullrun', type=int, required=True, help='Run number of base model')
+    table_parser.add_argument('--fulllexirun', type=int, required=True, help='Run number of lexi model')
+    table_parser.add_argument('--gens', type=int, required=True, help='Number of generations lexi model was evolved')
 
     args = parser.parse_args()
 
@@ -104,7 +154,7 @@ if __name__ == '__main__':
             full_lexi_run=args.fulllexirun,
             generations=args.gens,
             epsilon=args.epsilon,
-            mad=args.mad
+            escheme=args.escheme
         )
     elif args.command == 'full_lexi_full_lexi':
         full_lexi_to_full_lexi(
@@ -115,3 +165,9 @@ if __name__ == '__main__':
             epsilons=args.epsilons
         )
     elif args.command == 'table':
+        generate_table(
+            dataset=args.dataset,
+            full_run=args.fullrun,
+            full_lexi_run=args.fulllexirun,
+            generations=args.gens
+        )
