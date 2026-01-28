@@ -17,4 +17,4 @@ module load pytorch-extra-py39-cuda11.8-gcc11
 
 mkdir -p logs/train ../checkpoints
 
-python3 ../train.py full_lexi --name "$SLURM_JOB_NAME" --dataset "arc2" --run 1 --escheme "mad" --epochs 200
+python3 ../train.py full_lexi --name "$SLURM_JOB_NAME" --dataset "arc2" --run 1 --escheme "bh" --epochs 200
