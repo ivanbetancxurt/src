@@ -149,18 +149,18 @@ class NCA(th.nn.Module):
         rand_ex = random.Random(rng_seed)
         rand_ex.shuffle(examples)
 
-        losses = []
-        for _ in range(trials):
-            inputs = th.stack([th.tensor(example['input'], dtype=th.long, device=device) for example in examples])
-            targets = th.stack([th.tensor(example['output'], dtype=th.long, device=device) for example in examples])
+        inputs = th.stack([th.tensor(example['input'], dtype=th.long, device=device) for example in examples])
+        targets = th.stack([th.tensor(example['output'], dtype=th.long, device=device) for example in examples])
 
+        total_loss = 0.0
+        for _ in range(trials):
             states = self.rollout(inputs, steps=steps, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=force_sync)
             _, loss = self.per_pixel_log_loss(states, targets)
-            losses.append(loss)
 
-        avg_loss = th.stack(losses).mean()
-        avg_loss.backward()
-        return avg_loss.item()
+            (loss / trials).backward()
+            total_loss += float(loss.item())
+
+        return total_loss / trials
 
     def calc_steps(self, steps: int, grid: th.FloatTensor, max_grid_area: int) -> int:
         '''
@@ -333,32 +333,33 @@ class NCA(th.nn.Module):
                 x = th.tensor(case['input'], dtype=th.long, device=device)
                 y = th.tensor(case['output'], dtype=th.long, device=device)
 
-                for child_idx in pool:
-                    states = children[child_idx].rollout(state=x.unsqueeze(0), steps=steps, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=True)
-                    step_losses, avg_score = children[child_idx].per_pixel_log_loss(states=states, target=y.unsqueeze(0))
-                    final_score = step_losses[-1].item()
+                with th.no_grad():
+                    for child_idx in pool:
+                        states = children[child_idx].rollout(state=x.unsqueeze(0), steps=steps, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=True)
+                        step_losses, avg_score = children[child_idx].per_pixel_log_loss(states=states, target=y.unsqueeze(0))
+                        final_score = step_losses[-1].item()
 
-                    if use_avg_loss:
-                        scores.append(avg_score.item())
+                        if use_avg_loss:
+                            scores.append(avg_score.item())
+                        else:
+                            scores.append(final_score)
+                    
+                    best = min(scores)
+
+                    if epsilon_scheme == 'mad':
+                        epsilon = mad(scores)
+                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
+                    elif epsilon_scheme == 'bh':
+                        k = max(1, math.ceil(len(pool) / 2))
+                        kth_smallest_score = sorted(scores)[k - 1]
+                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= kth_smallest_score]
                     else:
-                        scores.append(final_score)
-                
-                best = min(scores)
+                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
 
-                if epsilon_scheme == 'mad':
-                    epsilon = mad(scores)
-                    pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
-                elif epsilon_scheme == 'bh':
-                    k = max(1, math.ceil(len(pool) / 2))
-                    kth_smallest_score = sorted(scores)[k - 1]
-                    pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= kth_smallest_score]
-                else:
-                    pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
+                    print_stats(scores)
 
-                print_stats(scores)
-
-                print(f'==> {len(pool)} remaining...')
-                if len(pool) == 1: break
+                    print(f'==> {len(pool)} remaining...')
+                    if len(pool) == 1: break
                     
             if len(pool) > 1:
                 print('==> Selecting random child...')
