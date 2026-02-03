@@ -1,7 +1,8 @@
 #!/bin/sh
 #SBATCH --job-name=arc2_full_lexi_1
 #SBATCH --cpus-per-task=1
-#SBATCH --partition=cpu-q
+#SBATCH --partition=gpu-a5000-q
+#SBATCH --gres=gpu:a5000:1
 #SBATCH --ntasks=1
 #SBATCH --mem=8G
 #SBATCH --time=07-00:00:00
