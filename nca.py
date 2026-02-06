@@ -222,13 +222,65 @@ class NCA(th.nn.Module):
         
         return epoch_losses
 
+    def fit_by_task(
+        self, 
+        task_path: str, 
+        epochs: int = 800,
+        steps: int = 10,
+        trials: int = 128,
+        learning_rate: float = 0.002, 
+        mask_prob_low: float = 0.0, 
+        mask_prob_high: float = 0.75, 
+        force_sync: bool = False
+    ) -> list[float]:
+        '''
+            Train NCA on one task.
+        '''
+        task = self.load_task(task_path)
+        max_grid_area = max(len(example['input']) * len(example['input'][0]) for example in task['train'])
+        device = next(self.parameters()).device
+
+        optimizer = th.optim.AdamW(self.parameters(), lr=learning_rate)
+        scheduler = th.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0001 / learning_rate, total_iters=epochs)
+
+        epoch_losses = []
+        print('==> Training...')
+        for epoch in range(epochs):
+            random.shuffle(task['train'])
+            
+            batch_losses = []
+            for example in task['train']:
+                optimizer.zero_grad(set_to_none=True)
+                x = th.tensor(example['input'], dtype=th.long, device=device)
+                y = th.tensor(example['output'], dtype=th.long, device=device)
+
+                steps_for_example = self.calc_steps(steps=steps, grid=x, max_grid_area=max_grid_area)
+
+                losses = []
+                for _ in range(trials):
+                    states = self.rollout(state=x.unsqueeze(0), steps=steps_for_example, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=force_sync)
+                    _, loss = self.per_pixel_log_loss(states=states, target=y.unsqueeze(0))
+                    losses.append(loss)
+
+                avg_loss = th.stack(losses).mean()
+                avg_loss.backward()
+                batch_losses.append(avg_loss.item())
+                optimizer.step()
+
+            epoch_loss = sum(batch_losses) / len(batch_losses)
+            epoch_losses.append(epoch_loss)
+            progress_bar(epoch + 1, epochs, f"Loss: {epoch_loss:.4f}")
+            scheduler.step()
+        
+        return epoch_losses
+
     def lexi_fit(
         self, 
         data_directory: str,
         epsilon: float,
-        epsilon_scheme: str = 'fixed',  # 'fixed' | 'mad' | 'bh'
+        case_mode: str, # 'ex' | 'pixel1'
+        epsilon_scheme: str = 'fixed',  # 'fixed' | 'mad' | 'bh' | 'none' (only when case mode is pixel)
         use_avg_loss: bool = False,
-        use_pixel_cases: bool = False,
         epochs: int = 200, #! ATTENTION
         steps: int = 10, 
         trials: int = 128, 
@@ -313,9 +365,9 @@ class NCA(th.nn.Module):
                 print(score)
             print('------------')
         
-        def select(children: list[NCA], epsilon: float) -> list[NCA]:
+        def ex_select(children: list[NCA], epsilon: float) -> list[NCA]:
             '''
-                Select a child NCA with lexicase selection and generate a new population.
+                Select a child NCA with lexicase selection using full examples as cases and generate a new population.
             '''
             pool = list(range(len(children)))
             print(f'==> Starting population size: {len(pool)}')
@@ -353,7 +405,7 @@ class NCA(th.nn.Module):
                         k = max(1, math.ceil(len(pool) / 2))
                         kth_smallest_score = sorted(scores)[k - 1]
                         pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= kth_smallest_score]
-                    else:
+                    elif epsilon_scheme == 'fixed':
                         pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
 
                     print_stats(scores)
@@ -372,6 +424,88 @@ class NCA(th.nn.Module):
             children = [deepcopy(parent) for _ in range(pop_size)]
             return children
 
+        def pixel_select(children: list[NCA], epsilon: float) -> list[NCA]:
+            '''
+                Select a child NCA with lexicase selection using pixels as cases and generate a new population.
+            '''
+            pool = list(range(len(children)))
+            print(f'==> Starting population size: {len(pool)}')
+
+            cases = []
+            for task in tasks:
+                for example in task['train']:
+                    cases.append(example)
+            
+            rand_cases = random.Random(cases_seed)
+            rand_cases.shuffle(cases)
+
+            for case_idx, case in enumerate(cases):
+                x = th.tensor(case['input'], dtype=th.long, device=device)
+                y = th.tensor(case['output'], dtype=th.long, device=device)
+
+                children_states = {}
+                with th.no_grad():
+                    for child_idx in pool:
+                        states = children[child_idx].rollout(state=x.unsqueeze(0), steps=steps, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=True)
+                        
+                        if epsilon_scheme == 'none':
+                            final_state = self.decode(states[-1])
+                            children_states[child_idx] = final_state
+                        else:
+                            children_states[child_idx] = states[-1]
+                    
+                H, W = y.shape
+
+                pixels = [(r, c) for r in range(H) for c in range(W)]
+                rand_pixels = random.Random(cases_seed + 10000 + case_idx)
+                rand_pixels.shuffle(pixels)
+
+                for (r, c) in pixels:
+                    scores = []
+                    target = y[r, c].item()
+
+                    for child_idx in pool:
+                        if epsilon_scheme == 'none':
+                            pred = children_states[child_idx][0, r, c].item()
+                            scores.append(int(pred != target))
+                        else:
+                            probs = children_states[child_idx][0, :10, r, c]
+                            t = int(target)
+                            loss = -th.log(probs.clamp_min(1e-8))[t].item()
+                            scores.append(loss)
+                    
+                    best = min(scores)
+
+                    if epsilon_scheme == 'mad':
+                        epsilon = mad(scores)
+                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
+                    elif epsilon_scheme == 'bh':
+                        k = max(1, math.ceil(len(pool) / 2))
+                        kth_smallest_score = sorted(scores)[k - 1]
+                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= kth_smallest_score]
+                    elif epsilon_scheme == 'fixed':
+                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
+                    elif epsilon_scheme == 'none':
+                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score == best]
+
+                    print_stats(scores)
+
+                    print(f'==> {len(pool)} remaining...')
+                    if len(pool) == 1: break
+                
+                if len(pool) == 1: break
+
+            if len(pool) > 1:
+                print('==> Selecting random child...')
+                rand_select = random.Random(select_seed)
+                parent_idx = rand_select.choice(pool)
+            else:
+                parent_idx = pool[0]
+            
+            parent = children[parent_idx]
+            children = [deepcopy(parent) for _ in range(pop_size)]
+            return children
+                        
         if one_run_test:
             epochs = 3
         else:
@@ -397,62 +531,14 @@ class NCA(th.nn.Module):
                 losses_per_gen.append({'generation': epoch + 1, 'child': i + 1, 'loss': losses[i]})
 
             print('==> Selecting parent for next generation...')
-            children = select(children, epsilon)
+            if case_mode == 'ex':
+                children = ex_select(children, epsilon)
+            elif case_mode == 'pixel1':
+                children = pixel_select(children, epsilon)
             
         self.load_state_dict(children[0].state_dict())
         return losses_per_gen
-
-    def fit_by_task(
-        self, 
-        task_path: str, 
-        epochs: int = 800,
-        steps: int = 10,
-        trials: int = 128,
-        learning_rate: float = 0.002, 
-        mask_prob_low: float = 0.0, 
-        mask_prob_high: float = 0.75, 
-        force_sync: bool = False
-    ) -> list[float]:
-        '''
-            Train NCA on one task.
-        '''
-        task = self.load_task(task_path)
-        max_grid_area = max(len(example['input']) * len(example['input'][0]) for example in task['train'])
-        device = next(self.parameters()).device
-
-        optimizer = th.optim.AdamW(self.parameters(), lr=learning_rate)
-        scheduler = th.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0001 / learning_rate, total_iters=epochs)
-
-        epoch_losses = []
-        print('==> Training...')
-        for epoch in range(epochs):
-            random.shuffle(task['train'])
             
-            batch_losses = []
-            for example in task['train']:
-                optimizer.zero_grad(set_to_none=True)
-                x = th.tensor(example['input'], dtype=th.long, device=device)
-                y = th.tensor(example['output'], dtype=th.long, device=device)
-
-                steps_for_example = self.calc_steps(steps=steps, grid=x, max_grid_area=max_grid_area)
-
-                losses = []
-                for _ in range(trials):
-                    states = self.rollout(state=x.unsqueeze(0), steps=steps_for_example, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=force_sync)
-                    _, loss = self.per_pixel_log_loss(states=states, target=y.unsqueeze(0))
-                    losses.append(loss)
-
-                avg_loss = th.stack(losses).mean()
-                avg_loss.backward()
-                batch_losses.append(avg_loss.item())
-                optimizer.step()
-
-            epoch_loss = sum(batch_losses) / len(batch_losses)
-            epoch_losses.append(epoch_loss)
-            progress_bar(epoch + 1, epochs, f"Loss: {epoch_loss:.4f}")
-            scheduler.step()
-        
-        return epoch_losses
 
     @th.no_grad()
     def evaluate(self, inputs: th.LongTensor, targets: th.LongTensor, steps: int = 10, generate_img: bool = False, cell_size: int = 24):

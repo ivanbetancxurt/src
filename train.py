@@ -29,6 +29,7 @@ def main():
     full_lexi.add_argument('--pop', default=4, type=int, help='Population size')
     full_lexi.add_argument('--useavgloss', action='store_true', help='Use average loss to score children')
     full_lexi.add_argument('--epsilon', default=0, type=float, help='Survival threshold')
+    full_lexi.add_argument('--casemode', required=True, type=str, help='What is used as test cases during lexicase selection')
     full_lexi.add_argument('--escheme', type=str, required=True, help='Epsilon selection scheme')
     full_lexi.add_argument('--lrmax', default=0.1, type=float, help='Max learning rate for SGD (Lexi)')
     full_lexi.add_argument('--lrmin', default=0, type=float, help='Minimum learning rate for SGD (Lexi)')
@@ -113,6 +114,7 @@ def main():
         losses = model.lexi_fit(
             data_directory=f'../data/{args.dataset}/training',
             epsilon=args.epsilon,
+            case_mode=args.casemode,
             epsilon_scheme=args.escheme,
             epochs=args.epochs,
             steps=args.steps,
@@ -133,12 +135,22 @@ def main():
 
         epochs_for_ckpt = 3 if args.test else args.epochs * (args.pop + 1)
 
-        if args.escheme == 'mad':
-            save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_MAD).pth'
-        elif args.escheme == 'bh':
-            save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_BH).pth'
-        else:
-            save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_{args.epsilon}e).pth'
+        if args.casemode == 'ex':
+            if args.escheme == 'mad':
+                save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_MAD_EX).pth'
+            elif args.escheme == 'bh':
+                save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_BH_EX).pth'
+            else:
+                save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_{args.epsilon}e_EX).pth'
+        elif args.casemode == 'pixel1':
+            if args.escheme == 'mad':
+                save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_MAD_PIXEL1).pth'
+            elif args.escheme == 'bh':
+                save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_BH_PIXEL1).pth'
+            elif args.escheme == 'none':
+                save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_NONE_PIXEL1).pth'
+            else:
+                save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_{args.epsilon}e_PIXEL1).pth'
 
         th.save({
             'model': model.state_dict(),
