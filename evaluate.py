@@ -187,6 +187,7 @@ def main():
                 ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_{args.epsilon}e_PIXEL1).pth', map_location=th.device(device))
             elif args.escheme == 'none':
                 ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_NONE_PIXEL1).pth', map_location=th.device(device))
+                
         configs = ckpt['configs']
         state = ckpt['model']
         model.load_state_dict(state)
