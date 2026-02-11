@@ -1,5 +1,5 @@
 #!/bin/sh
-#SBATCH --job-name=eval_arc1_full_BH_PIXEL1
+#SBATCH --job-name=eval_arc1_full_lexi_BH_PIXEL1
 #SBATCH --partition=gpu-a5000-q
 #SBATCH --gres=gpu:a5000:1
 #SBATCH --cpus-per-task=8

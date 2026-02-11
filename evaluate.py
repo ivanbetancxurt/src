@@ -73,12 +73,23 @@ def main():
                     writer.writeheader()  
                     writer.writerows(data)
         else:
-            if args.escheme == 'mad':
-                out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_MAD)_results.csv'
-            elif args.escheme == 'bh':
-                out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_BH)_results.csv'
-            else:
-                out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_{args.epsilon}e)_results.csv'
+            if args.casemode == 'ex':
+                if args.escheme == 'mad':
+                    out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_MAD)_results.csv'
+                elif args.escheme == 'bh':
+                    out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_BH)_results.csv'
+                else:
+                    out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_{args.epsilon}e)_results.csv'
+            elif args.casemode == 'pixel1':
+                if args.escheme == 'mad':
+                    out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_MAD_PIXEL1)_results.csv'
+                elif args.escheme == 'bh':
+                    out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_BH_PIXEL1)_results.csv'
+                elif args.escheme == 'fixed':
+                    out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_{args.epsilon}e_PIXEL1)_results.csv'
+                elif args.escheme == 'none':
+                    out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_NONE_PIXEL1)_results.csv'
+
             with open(out, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.DictWriter(f, fieldnames=lexi_fieldnames)
                 writer.writeheader()
