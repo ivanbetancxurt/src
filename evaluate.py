@@ -26,6 +26,7 @@ def main():
     full_lexi = subparsers.add_parser('full_lexi', parents=[common], help='Trained NCA on all tasks with lexi')
     full_lexi_sub = full_lexi.add_subparsers(dest='variant')
     full_lexi.add_argument('--gens', type=int, help='Number of generations')
+    full_lexi.add_argument('--casemode', type=str, required=True, help='What is used as test cases during lexicase selection')
     full_lexi.add_argument('--epsilon', type=float, help='Survival threshold')
     full_lexi.add_argument('--escheme', type=str, required=True, help='Epsilon selection scheme')
     full_lexi_single = full_lexi_sub.add_parser('single', help='Evaluate a single task')
@@ -159,12 +160,22 @@ def main():
 
             record(args.command)
     elif args.command == 'full_lexi':
-        if args.escheme == 'mad':
-            ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_MAD).pth', map_location=th.device(device))
-        elif args.escheme == 'bh':
-            ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_BH).pth', map_location=th.device(device))
-        else:
-            ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_{args.epsilon}e).pth', map_location=th.device(device))
+        if args.casemode == 'ex':
+            if args.escheme == 'mad':
+                ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_MAD).pth', map_location=th.device(device))
+            elif args.escheme == 'bh':
+                ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_BH).pth', map_location=th.device(device))
+            else:
+                ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_{args.epsilon}e).pth', map_location=th.device(device))
+        elif args.casemode == 'pixel1':
+            if args.escheme == 'mad':
+                ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_MAD_PIXEL1).pth', map_location=th.device(device))
+            elif args.escheme == 'bh':
+                ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_BH_PIXEL1).pth', map_location=th.device(device))
+            elif args.escheme == 'fixed':
+                ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_{args.epsilon}e_PIXEL1).pth', map_location=th.device(device))
+            elif args.escheme == 'none':
+                ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_NONE_PIXEL1).pth', map_location=th.device(device))
         configs = ckpt['configs']
         state = ckpt['model']
         model.load_state_dict(state)
