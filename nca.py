@@ -174,7 +174,7 @@ class NCA(th.nn.Module):
 
     def fit(
         self, 
-        data_directory: str, 
+        data_directory: str,
         epochs: int = 800, 
         steps: int = 10, 
         trials: int = 128, 
@@ -222,56 +222,213 @@ class NCA(th.nn.Module):
         
         return epoch_losses
 
+    def mad(scores: list[float]) -> float:
+        '''
+            Compute median absolute deviation of childrens' scores to set epsilon.
+        '''
+        median = np.median(scores)
+        return np.median([abs(score - median) for score in scores])
+
     def fit_by_task(
         self, 
-        task_path: str, 
+        task_path: str,
+        epsilon: float,
+        lexi: bool = False, 
         epochs: int = 800,
+        epsilon_scheme: str = 'fixed',
         steps: int = 10,
         trials: int = 128,
-        learning_rate: float = 0.002, 
+        pop_size: int = 4,
+        subset_factor: int = 2,
+        adamw_learning_rate: float = 0.002, 
+        lr_max: float = 0.1,
+        lr_min: float = 0,
         mask_prob_low: float = 0.0, 
         mask_prob_high: float = 0.75, 
+        rng_seed: int = 25,
         force_sync: bool = False
     ) -> list[float]:
         '''
             Train NCA on one task.
         '''
-        task = self.load_task(task_path)
-        max_grid_area = max(len(example['input']) * len(example['input'][0]) for example in task['train'])
-        device = next(self.parameters()).device
+        def cosine_annealing_lr(epoch: int, lr: float = 0.1, T_max=epochs, eta_min=0):
+            return eta_min + (0.5 * (lr - eta_min) * (1 + np.cos((epoch)/T_max * np.pi)))
 
-        optimizer = th.optim.AdamW(self.parameters(), lr=learning_rate)
-        scheduler = th.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0001 / learning_rate, total_iters=epochs)
+        def subset_gd(epoch: int, children: list[NCA]) -> (list[NCA], list[float]):
+            '''
+                Train each child NCA on a disjoint subset of the data.
+            '''
+            subset_size = subset_factor * len(examples)
+
+            child_losses = []
+            for i, child in enumerate(children):
+                optimizer = th.optim.SGD(
+                    child.parameters(),
+                    lr=cosine_annealing_lr(epoch=epoch, lr=lr_max, T_max=epochs, eta_min=lr_min),
+                    momentum=0.9,
+                    weight_decay=1e-4
+                )
+
+                child_seed = gen_seed + 5000 + i 
+                is_cuda = next(child.parameters()).is_cuda
+                devices = [th.cuda.current_device()] if is_cuda else []
+                
+                with th.random.fork_rng(devices=devices):
+                    th.manual_seed(child_seed)
+                    if is_cuda:
+                        th.cuda.manual_seed_all(child_seed)
+
+                    rand_subset = random.Random(partition_seed + 1000 * i)
+                    subset_examples = [rand_subset.choice(examples) for _ in range(subset_size)]
+
+                    shape_buckets = child.get_shape_buckets([{'train': subset_examples}])
+
+                    losses = []
+                    for j, example_list in enumerate(shape_buckets.values()):
+                        optimizer.zero_grad(set_to_none=True)
+                        progress_bar(j, len(shape_buckets.values()), f'Epoch {epoch + 1}: Training child {i + 1}')
+
+                        avg_loss = child.train_on_examples(
+                            examples=example_list,
+                            steps=steps,
+                            trials=trials,
+                            mask_prob_low=mask_prob_low,
+                            mask_prob_high=mask_prob_high,
+                            force_sync=force_sync,
+                            device=device,
+                            rng_seed=examples_seed
+                        )
+
+                        losses.append(avg_loss)
+                        optimizer.step()
+
+                    child_losses.append(float(np.mean(losses)))
+
+            return children, child_losses
+
+        def pixel_select(children: list[NCA], epsilon: float):
+            rand_cases = random.Random(cases_seed)
+            rand_cases.shuffle(examples)
+
+            pool = list(range(len(children)))
+
+            for example_idx, example in enumerate(examples):
+                x = th.tensor(example['input'], dtype=th.long, device=device)
+                y = th.tensor(example['output'], dtype=th.long, device=device)
+
+                children_states = {}
+                with th.no_grad():
+                    for child_idx in pool:
+                        states = children[child_idx].rollout(state=x.unsqueeze(0), steps=steps, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=True)
+                        
+                        if epsilon_scheme == 'none':
+                            final_state = self.decode(states[-1])
+                            children_states[child_idx] = final_state
+                        else:
+                            children_states[child_idx] = states[-1]
+                    
+                H, W = y.shape
+
+                pixels = [(r, c) for r in range(H) for c in range(W)]
+                rand_pixels = random.Random(cases_seed + 10000 + example_idx)
+                rand_pixels.shuffle(pixels)
+
+                for (r, c) in pixels:
+                    scores = []
+                    target = y[r, c].item()
+
+                    for child_idx in pool:
+                        if epsilon_scheme == 'none':
+                            pred = children_states[child_idx][0, r, c].item()
+                            scores.append(int(pred != target))
+                        else:
+                            probs = children_states[child_idx][0, :10, r, c]
+                            t = int(target)
+                            loss = -th.log(probs.clamp_min(1e-8))[t].item()
+                            scores.append(loss)
+                    
+                    best = min(scores)
+
+                    if epsilon_scheme == 'mad':
+                        epsilon = self.mad(scores)
+                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
+                    elif epsilon_scheme == 'bh':
+                        k = max(1, math.ceil(len(pool) / 2))
+                        kth_smallest_score = sorted(scores)[k - 1]
+                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= kth_smallest_score]
+                    elif epsilon_scheme == 'fixed':
+                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
+                    elif epsilon_scheme == 'none':
+                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score == best]
+
+                    print(f'==> {len(pool)} remaining...')
+                    if len(pool) == 1: break
+                
+                if len(pool) == 1: break
+
+            if len(pool) > 1:
+                print('==> Selecting random child...')
+                rand_select = random.Random(select_seed)
+                parent_idx = rand_select.choice(pool)
+            else:
+                parent_idx = pool[0]
+            
+            parent = children[parent_idx]
+            children = [deepcopy(parent) for _ in range(pop_size)]
+            return children
+        
+        task = self.load_task(task_path)
+        examples = task['train']
+        max_grid_area = max(len(example['input']) * len(example['input'][0]) for example in examples)
+        device = next(self.parameters()).device
+        children = [deepcopy(self) for _ in range(pop_size)]
+
+        optimizer = th.optim.AdamW(self.parameters(), lr=adamw_learning_rate)
+        scheduler = th.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.0001 / adamw_learning_rate, total_iters=epochs)
 
         epoch_losses = []
         print('==> Training...')
         for epoch in range(epochs):
-            random.shuffle(task['train'])
-            
-            batch_losses = []
-            for example in task['train']:
-                optimizer.zero_grad(set_to_none=True)
-                x = th.tensor(example['input'], dtype=th.long, device=device)
-                y = th.tensor(example['output'], dtype=th.long, device=device)
+            if lexi:
+                gen_seed = rng_seed + (2500 * epoch)
+                partition_seed = gen_seed + 1
+                cases_seed = gen_seed + 2
+                select_seed = gen_seed + 3
+                examples_seed = gen_seed + 250
 
-                steps_for_example = self.calc_steps(steps=steps, grid=x, max_grid_area=max_grid_area)
+                print('==> Training children...')
+                children, losses = subset_gd(epoch, children)
 
-                losses = []
-                for _ in range(trials):
-                    states = self.rollout(state=x.unsqueeze(0), steps=steps_for_example, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=force_sync)
-                    _, loss = self.per_pixel_log_loss(states=states, target=y.unsqueeze(0))
-                    losses.append(loss)
+                print('==> Selecting parent for next generation...')
+                children = pixel_select(children, epsilon)
+            else:
+                random.shuffle(task['train'])
+                
+                batch_losses = []
+                for example in task['train']:
+                    optimizer.zero_grad(set_to_none=True)
+                    x = th.tensor(example['input'], dtype=th.long, device=device)
+                    y = th.tensor(example['output'], dtype=th.long, device=device)
 
-                avg_loss = th.stack(losses).mean()
-                avg_loss.backward()
-                batch_losses.append(avg_loss.item())
-                optimizer.step()
+                    steps_for_example = self.calc_steps(steps=steps, grid=x, max_grid_area=max_grid_area)
 
-            epoch_loss = sum(batch_losses) / len(batch_losses)
-            epoch_losses.append(epoch_loss)
-            progress_bar(epoch + 1, epochs, f"Loss: {epoch_loss:.4f}")
-            scheduler.step()
+                    losses = []
+                    for _ in range(trials):
+                        states = self.rollout(state=x.unsqueeze(0), steps=steps_for_example, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=force_sync)
+                        _, loss = self.per_pixel_log_loss(states=states, target=y.unsqueeze(0))
+                        losses.append(loss)
+
+                    avg_loss = th.stack(losses).mean()
+                    avg_loss.backward()
+                    batch_losses.append(avg_loss.item())
+                    optimizer.step()
+
+                epoch_loss = sum(batch_losses) / len(batch_losses)
+                epoch_losses.append(epoch_loss)
+                progress_bar(epoch + 1, epochs, f"Loss: {epoch_loss:.4f}")
+                scheduler.step()
         
+        if lexi: self.load_state_dict(children[0].state_dict())
         return epoch_losses
 
     def lexi_fit(
@@ -348,13 +505,6 @@ class NCA(th.nn.Module):
                     child_losses.append(np.mean(losses))
 
             return children, child_losses
-
-        def mad(scores: list[float]) -> float:
-            '''
-                Compute median absolute deviation of childrens' scores to set epsilon.
-            '''
-            median = np.median(scores)
-            return np.median([abs(score - median) for score in scores])
 
         def print_stats(scores: list):
             '''
@@ -477,7 +627,7 @@ class NCA(th.nn.Module):
                     best = min(scores)
 
                     if epsilon_scheme == 'mad':
-                        epsilon = mad(scores)
+                        epsilon = self.mad(scores)
                         pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
                     elif epsilon_scheme == 'bh':
                         k = max(1, math.ceil(len(pool) / 2))
