@@ -79,7 +79,7 @@ def main():
                 writer.writerow([epoch, loss])
         '''
         if args.lexi:
-            save_dir = f'../checkpoints/{args.dataset}_bytask_lexi/{args.run}/{args.name}.pth'
+            save_dir = f'../checkpoints/{args.dataset}_bytask_lexi/{args.run}/{args.name}_{args.escheme}.pth'
         else:
             save_dir = f'../checkpoints/{args.dataset}_bytask/{args.run}/{args.name}.pth'
         
