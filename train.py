@@ -22,6 +22,13 @@ def main():
 
     bytask = subparsers.add_parser('bytask', parents=[common], help='Train NCA on one task')
     bytask.add_argument('--task', type=int, required=True, help='Task being trained on')
+    bytask.add_argument('--pop', default=4, type=int, help='Population size')
+    bytask.add_argument('--epsilon', default=0, type=float, help='Survival threshold')
+    bytask.add_argument('--lexi', action='store_true', help='Activate lexicase')
+    bytask.add_argument('--subfactor', type=int, default=2, help='Used to determine how many examples are sampled for subset_gd')
+    bytask.add_argument('--escheme', type=str, required=True, help='Epsilon selection scheme')
+    bytask.add_argument('--lrmax', default=0.1, type=float, help='Max learning rate for SGD (Lexi)')
+    bytask.add_argument('--lrmin', default=0, type=float, help='Minimum learning rate for SGD (Lexi)')
 
     subparsers.add_parser('full', parents=[common], help='Train NCA on all tasks')
 
@@ -49,20 +56,33 @@ def main():
 
         losses = model.fit_by_task(
             task_path=f'../data/{args.dataset}/training/task_{args.task}.json',
+            epsilon=args.epsilon,
+            lexi=args.lexi,
             epochs=args.epochs,
+            epsilon_scheme=args.escheme,
             steps=args.steps,
             trials=args.trials,
-            learning_rate=args.lr,
+            pop_size=args.pop,
+            subset_factor=args.subfactor,
+            adamw_learning_rate=args.lr,
+            lr_max=args.lrmax,
+            lr_min=args.lrmin,
             mask_prob_low=args.mplow,
             mask_prob_high=args.mphigh
         )
 
+        '''
         with open(f'../data/losses/{args.dataset}_bytask/{args.run}/{args.name}_losses.csv', 'w', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(['epoch', 'loss'])
             for epoch, loss in enumerate(losses, start=1):
                 writer.writerow([epoch, loss])
-
+        '''
+        if args.lexi:
+            save_dir = f'../checkpoints/{args.dataset}_bytask_lexi/{args.run}/{args.name}.pth'
+        else:
+            save_dir = f'../checkpoints/{args.dataset}_bytask/{args.run}/{args.name}.pth'
+        
         th.save({
             'model': model.state_dict(),
             'configs': {
@@ -76,7 +96,7 @@ def main():
             },
             'epochs': args.epochs,
             'device': str(device)
-        }, f'../checkpoints/{args.dataset}_bytask/{args.run}/{args.name}.pth')
+        }, save_dir)
 
     elif args.command == 'full':
         losses = model.fit(

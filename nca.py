@@ -222,7 +222,7 @@ class NCA(th.nn.Module):
         
         return epoch_losses
 
-    def mad(scores: list[float]) -> float:
+    def mad(self, scores: list[float]) -> float:
         '''
             Compute median absolute deviation of childrens' scores to set epsilon.
         '''
