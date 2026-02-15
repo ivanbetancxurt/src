@@ -633,10 +633,10 @@ class NCA(th.nn.Module):
                         k = max(1, math.ceil(len(pool) / 2))
                         kth_smallest_score = sorted(scores)[k - 1]
                         pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= kth_smallest_score]
-                    elif epsilon_scheme == 'fixed':
-                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
                     elif epsilon_scheme == 'none':
                         pool = [child_idx for (child_idx, score) in zip(pool, scores) if score == best]
+                    else:
+                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
 
                     print_stats(scores)
 
