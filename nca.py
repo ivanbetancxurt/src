@@ -48,7 +48,7 @@ class NCA(th.nn.Module):
 
     def forward(self, grids: th.FloatTensor) -> th.FloatTensor:
         '''
-            Single forward pass of rules on a batch of grids, returning the updated states. Must encode first if not running via rollout().
+            Single forward pass of rules on a batch of grids, returning the updated states. #! Must encode first if not running via rollout().
         '''
         initial_grids = grids
         grids = self.conv(grids)
