@@ -549,7 +549,7 @@ class NCA(th.nn.Module):
                     best = min(scores)
 
                     if epsilon_scheme == 'mad':
-                        epsilon = mad(scores)
+                        epsilon = self.mad(scores)
                         pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
                     elif epsilon_scheme == 'bh':
                         k = max(1, math.ceil(len(pool) / 2))
