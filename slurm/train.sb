@@ -1,5 +1,5 @@
 #!/bin/sh
-#SBATCH --job-name=arc1_bytask79_lexi_0
+#SBATCH --job-name=arc1_bytask80_lexi_0
 #SBATCH --cpus-per-task=1
 #SBATCH --cpus-per-task=1
 #SBATCH --partition=cpu-q
@@ -17,7 +17,7 @@ module load pytorch-extra-py39-cuda11.8-gcc11
 
 mkdir -p logs/train ../checkpoints
 
-python3 ../train.py bytask --name "$SLURM_JOB_NAME" --dataset "arc1" --lexi --epochs 800 --escheme "none" --task 79 --run 0
-python3 ../train.py bytask --name "$SLURM_JOB_NAME" --dataset "arc1" --lexi --epochs 800 --escheme "bh" --task 79 --run 0
-python3 ../train.py bytask --name "$SLURM_JOB_NAME" --dataset "arc1" --lexi --epochs 800 --escheme "mad" --task 79 --run 0
-python3 ../train.py bytask --name "$SLURM_JOB_NAME" --dataset "arc1" --lexi --epochs 800 --escheme "0.4e" --epsilon 0.4 --task 79 --run 0
+python3 ../train.py bytask --name "$SLURM_JOB_NAME" --dataset "arc1" --lexi --epochs 800 --escheme "none" --task 80 --run 0
+python3 ../train.py bytask --name "$SLURM_JOB_NAME" --dataset "arc1" --lexi --epochs 800 --escheme "bh" --task 80 --run 0
+python3 ../train.py bytask --name "$SLURM_JOB_NAME" --dataset "arc1" --lexi --epochs 800 --escheme "mad" --task 80 --run 0
+python3 ../train.py bytask --name "$SLURM_JOB_NAME" --dataset "arc1" --lexi --epochs 800 --escheme "0.4e" --epsilon 0.4 --task 80 --run 0
