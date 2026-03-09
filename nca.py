@@ -235,6 +235,7 @@ class NCA(th.nn.Module):
         epsilon: float,
         lexi: bool = False, 
         epochs: int = 800,
+        case_mode: str = 'pixel1', # 'pixel1' | 'pixel2'
         epsilon_scheme: str = 'fixed',
         steps: int = 10,
         trials: int = 128,
@@ -306,7 +307,7 @@ class NCA(th.nn.Module):
 
             return children, child_losses
 
-        def pixel_select(children: list[NCA], epsilon: float):
+        def pixel_select(children: list[NCA], epsilon: float, case_mode):
             rand_cases = random.Random(cases_seed)
             rand_cases.shuffle(examples)
 
@@ -321,7 +322,7 @@ class NCA(th.nn.Module):
                     for child_idx in pool:
                         states = children[child_idx].rollout(state=x.unsqueeze(0), steps=steps, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=True)
                         
-                        if epsilon_scheme == 'none':
+                        if epsilon_scheme == 'none' or case_mode == 'pixel2':
                             final_state = self.decode(states[-1])
                             children_states[child_idx] = final_state
                         else:
@@ -336,29 +337,46 @@ class NCA(th.nn.Module):
                 for (r, c) in pixels:
                     scores = []
                     target = y[r, c].item()
-
-                    for child_idx in pool:
-                        if epsilon_scheme == 'none':
-                            pred = children_states[child_idx][0, r, c].item()
-                            scores.append(int(pred != target))
-                        else:
-                            probs = children_states[child_idx][0, :10, r, c]
-                            t = int(target)
-                            loss = -th.log(probs.clamp_min(1e-8))[t].item()
-                            scores.append(loss)
                     
-                    best = min(scores)
+                    if case_mode == 'pixel1':
+                        for child_idx in pool:
+                            if epsilon_scheme == 'none':
+                                pred = children_states[child_idx][0, r, c].item()
+                                scores.append(int(pred != target))
+                            else:
+                                probs = children_states[child_idx][0, :10, r, c]
+                                t = int(target)
+                                loss = -th.log(probs.clamp_min(1e-8))[t].item()
+                                scores.append(loss)
+                        
+                        best = min(scores)
 
-                    if epsilon_scheme == 'mad':
-                        epsilon = self.mad(scores)
-                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
-                    elif epsilon_scheme == 'bh':
-                        k = max(1, math.ceil(len(pool) / 2))
-                        kth_smallest_score = sorted(scores)[k - 1]
-                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= kth_smallest_score]
-                    elif epsilon_scheme == 'fixed':
-                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
-                    elif epsilon_scheme == 'none':
+                        if epsilon_scheme == 'mad':
+                            epsilon = self.mad(scores)
+                            pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
+                        elif epsilon_scheme == 'bh':
+                            k = max(1, math.ceil(len(pool) / 2))
+                            kth_smallest_score = sorted(scores)[k - 1]
+                            pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= kth_smallest_score]
+                        elif epsilon_scheme == 'fixed':
+                            pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
+                        elif epsilon_scheme == 'none':
+                            pool = [child_idx for (child_idx, score) in zip(pool, scores) if score == best]
+                    elif case_mode == 'pixel2':
+                        for child_idx in pool:
+                            score = 0
+                            pred = children_states[child_idx][0, r, c].item()
+                            score += int(pred == target)
+
+                            if x[r, c] == target: # if the NCA should not have changed this pixel...
+                                score += int(pred == x[r, c])
+                            else: # but it should have changed it...
+                                score += int(pred != x[r, c])
+                            
+                            scores.append(score)
+                        
+                        best = max(scores)
+
                         pool = [child_idx for (child_idx, score) in zip(pool, scores) if score == best]
 
                     print(f'==> {len(pool)} remaining...')
@@ -400,7 +418,7 @@ class NCA(th.nn.Module):
                 children, losses = subset_gd(epoch, children)
 
                 print('==> Selecting parent for next generation...')
-                children = pixel_select(children, epsilon)
+                children = pixel_select(children, epsilon, case_mode)
             else:
                 random.shuffle(task['train'])
                 
@@ -574,7 +592,7 @@ class NCA(th.nn.Module):
             children = [deepcopy(parent) for _ in range(pop_size)]
             return children
 
-        def pixel_select(children: list[NCA], epsilon: float) -> list[NCA]:
+        def pixel_select(children: list[NCA], epsilon: float, case_mode: str) -> list[NCA]:
             '''
                 Select a child NCA with lexicase selection using pixels as cases and generate a new population.
             '''
@@ -598,7 +616,7 @@ class NCA(th.nn.Module):
                     for child_idx in pool:
                         states = children[child_idx].rollout(state=x.unsqueeze(0), steps=steps, mask_prob_low=mask_prob_low, mask_prob_high=mask_prob_high, force_sync=True)
                         
-                        if epsilon_scheme == 'none':
+                        if epsilon_scheme == 'none' or case_mode == 'pixel2':
                             final_state = self.decode(states[-1])
                             children_states[child_idx] = final_state
                         else:
@@ -614,29 +632,35 @@ class NCA(th.nn.Module):
                     scores = []
                     target = y[r, c].item()
 
-                    for child_idx in pool:
-                        if epsilon_scheme == 'none':
-                            pred = children_states[child_idx][0, r, c].item()
-                            scores.append(int(pred != target))
-                        else:
-                            probs = children_states[child_idx][0, :10, r, c]
-                            t = int(target)
-                            loss = -th.log(probs.clamp_min(1e-8))[t].item()
-                            scores.append(loss)
-                    
-                    best = min(scores)
+                    if case_mode == 'pixel1':
+                        for child_idx in pool:
+                            if epsilon_scheme == 'none':
+                                pred = children_states[child_idx][0, r, c].item()
+                                scores.append(int(pred != target))
+                            else:
+                                probs = children_states[child_idx][0, :10, r, c]
+                                t = int(target)
+                                loss = -th.log(probs.clamp_min(1e-8))[t].item()
+                                scores.append(loss)
+                        
+                        best = min(scores)
 
-                    if epsilon_scheme == 'mad':
-                        epsilon = self.mad(scores)
-                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
-                    elif epsilon_scheme == 'bh':
-                        k = max(1, math.ceil(len(pool) / 2))
-                        kth_smallest_score = sorted(scores)[k - 1]
-                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= kth_smallest_score]
-                    elif epsilon_scheme == 'none':
-                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score == best]
-                    else:
-                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
+                        if epsilon_scheme == 'mad':
+                            epsilon = self.mad(scores)
+                            pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
+                        elif epsilon_scheme == 'bh':
+                            k = max(1, math.ceil(len(pool) / 2))
+                            kth_smallest_score = sorted(scores)[k - 1]
+                            pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= kth_smallest_score]
+                        elif epsilon_scheme == 'none':
+                            pool = [child_idx for (child_idx, score) in zip(pool, scores) if score == best]
+                        else:
+                            pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
+                    elif case_mode == 'pixel2':
+
+                        #todo: implement pixel2 case
+
+                        pass
 
                     print_stats(scores)
 
@@ -683,8 +707,8 @@ class NCA(th.nn.Module):
             print('==> Selecting parent for next generation...')
             if case_mode == 'ex':
                 children = ex_select(children, epsilon)
-            elif case_mode == 'pixel1':
-                children = pixel_select(children, epsilon)
+            else:
+                children = pixel_select(children, epsilon, case_mode)
             
         self.load_state_dict(children[0].state_dict())
         return losses_per_gen

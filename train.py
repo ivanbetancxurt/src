@@ -25,6 +25,7 @@ def main():
     bytask.add_argument('--pop', default=4, type=int, help='Population size')
     bytask.add_argument('--epsilon', default=0, type=float, help='Survival threshold')
     bytask.add_argument('--lexi', action='store_true', help='Activate lexicase')
+    bytask.add_argument('--casemode', required=True, type=str, help='Pixel scoring scheme')
     bytask.add_argument('--subfactor', type=int, default=2, help='Used to determine how many examples are sampled for subset_gd')
     bytask.add_argument('--escheme', type=str, required=True, help='Epsilon selection scheme')
     bytask.add_argument('--lrmax', default=0.1, type=float, help='Max learning rate for SGD (Lexi)')
@@ -57,6 +58,7 @@ def main():
         losses = model.fit_by_task(
             task_path=f'../data/{args.dataset}/training/task_{args.task}.json',
             epsilon=args.epsilon,
+            case_mode=args.casemode,
             lexi=args.lexi,
             epochs=args.epochs,
             epsilon_scheme=args.escheme,
@@ -79,7 +81,7 @@ def main():
                 writer.writerow([epoch, loss])
         '''
         if args.lexi:
-            save_dir = f'../checkpoints/{args.dataset}_bytask_lexi/{args.run}/{args.name}_{args.escheme}.pth'
+            save_dir = f'../checkpoints/{args.dataset}_bytask_lexi_{args.casemode}/{args.run}/{args.name}_{args.escheme}.pth'
         else:
             save_dir = f'../checkpoints/{args.dataset}_bytask/{args.run}/{args.name}.pth'
         
