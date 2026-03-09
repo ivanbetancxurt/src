@@ -1,5 +1,5 @@
 #!/bin/sh
-#SBATCH --job-name=arc1_bytask41_lexi_0
+#SBATCH --job-name=arc1_bytask71_lexi_0
 #SBATCH --cpus-per-task=1
 #SBATCH --partition=gpu-a100-q
 #SBATCH --gres=gpu:a100:1
