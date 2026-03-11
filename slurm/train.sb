@@ -1,5 +1,5 @@
 #!/bin/sh
-#SBATCH --job-name=arc1_bytask71_lexi_0
+#SBATCH --job-name=arc1_bytask43_lexi_0
 #SBATCH --cpus-per-task=1
 #SBATCH --partition=gpu-a100-q
 #SBATCH --gres=gpu:a100:1
@@ -17,8 +17,4 @@ module load pytorch-extra-py39-cuda11.8-gcc11
 
 mkdir -p logs/train ../checkpoints
 
-#python3 ../train.py bytask --name "$SLURM_JOB_NAME" --dataset "arc1" --lexi --epochs 800 --casemode "pixel2" --escheme "none" --task 43 --run 0
-python3 ../train.py bytask --name "$SLURM_JOB_NAME" --dataset "arc1" --lexi --epochs 800 --escheme "none" --casemode "pixel1" --task 71 --run 0
-python3 ../train.py bytask --name "$SLURM_JOB_NAME" --dataset "arc1" --lexi --epochs 800 --escheme "bh" --casemode "pixel1" --task 71 --run 0
-python3 ../train.py bytask --name "$SLURM_JOB_NAME" --dataset "arc1" --lexi --epochs 800 --escheme "mad" --casemode "pixel1" --task 71 --run 0
-python3 ../train.py bytask --name "$SLURM_JOB_NAME" --dataset "arc1" --lexi --epochs 800 --escheme "0.4e" --casemode "pixel1" --epsilon 0.4 --task 71 --run 0
+python3 ../train.py bytask --name "$SLURM_JOB_NAME" --dataset "arc1" --lexi --epochs 800 --casemode "pixel2" --escheme "none" --task 43 --run 0
