@@ -15,7 +15,12 @@ def main():
     common.add_argument('--dataset', type=str, required=True, help='Dataset being evaluated on')
     common.add_argument('--run', type=int, required=True, help='Run number')
 
-    subparsers.add_parser('bytask', parents=[common], help='Trained NCA on one tasks')
+    by_task = subparsers.add_parser('bytask', parents=[common], help='Trained NCA on one task')
+
+    by_task_lexi = subparsers.add_parser('bytask_lexi', parents=[common], help='Trained NCA on one task with lexi')
+    by_task_lexi.add_argument('--casemode', type=str, required=True, help='What is used as test cases during lexicase selection')
+    by_task_lexi.add_argument('--escheme', type=str, required=True, help='Epsilon selection scheme')
+
 
     full = subparsers.add_parser('full', parents=[common], help='Trained NCA on all tasks')
     full_sub = full.add_subparsers(dest='variant')
@@ -29,8 +34,9 @@ def main():
     full_lexi.add_argument('--casemode', type=str, required=True, help='What is used as test cases during lexicase selection')
     full_lexi.add_argument('--epsilon', type=float, help='Survival threshold')
     full_lexi.add_argument('--escheme', type=str, required=True, help='Epsilon selection scheme')
+
     full_lexi_single = full_lexi_sub.add_parser('single', help='Evaluate a single task')
-    full_lexi_single.add_argument('--task', type=int, required=True)
+    full_lexi_single.add_argument('--task', type=int, required=True,)
     full_lexi_single.add_argument('--cell', type=int, default=24, help='Cell size')
     
     args = parser.parse_args()
@@ -72,7 +78,13 @@ def main():
                     writer = csv.DictWriter(f, fieldnames=fieldnames)
                     writer.writeheader()  
                     writer.writerows(data)
+        elif command == 'bytask_lexi':
+            with open(f'../data/results/{args.dataset}_{command}/{args.dataset}_{command}_{args.run}_{args.escheme}_PIXEL1_results.csv', 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.DictWriter(f, fieldnames=fieldnames)
+                    writer.writeheader()  
+                    writer.writerows(data)
         else:
+            #? this code is retarded
             if args.casemode == 'ex':
                 if args.escheme == 'mad':
                     out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_MAD)_results.csv'
@@ -145,6 +157,17 @@ def main():
     model = NCA()
 
     if args.command == 'bytask':
+        for n in range(1, num_tasks + 1):
+            ckpt = th.load(f'../checkpoints/{args.dataset}_bytask_lexi/{args.run}/{args.dataset}_bytask{n}_lexi_{args.run}_{args.escheme}.pth', map_location=th.device(device))
+            configs = ckpt['configs']
+            state = ckpt['model']
+            model.load_state_dict(state)
+            model.to(device)
+
+            evaluate(model=model, configs=configs, task_num=n, dataset=args.dataset)
+
+        record(args.command)
+    elif args.command == 'bytask_lexi':
         for n in range(1, num_tasks + 1):
             ckpt = th.load(f'../checkpoints/{args.dataset}_bytask/{args.run}/{args.dataset}_bytask{n}_{args.run}.pth', map_location=th.device(device))
             configs = ckpt['configs']
