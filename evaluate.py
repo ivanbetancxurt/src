@@ -169,7 +169,7 @@ def main():
         record(args.command)
     elif args.command == 'bytask_lexi':
         for n in range(1, num_tasks + 1):
-            ckpt = th.load(f'../checkpoints/{args.dataset}_bytask_lexi/{args.run}/{args.dataset}_bytask{n}_{args.run}_{args.escheme}.pth', map_location=th.device(device))
+            ckpt = th.load(f'../checkpoints/{args.dataset}_bytask_lexi/{args.run}/{args.dataset}_bytask{n}_lexi_{args.run}_{args.escheme}.pth', map_location=th.device(device))
             configs = ckpt['configs']
             state = ckpt['model']
             model.load_state_dict(state)
