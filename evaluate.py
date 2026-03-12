@@ -79,7 +79,7 @@ def main():
                     writer.writeheader()  
                     writer.writerows(data)
         elif command == 'bytask_lexi':
-            with open(f'../data/results/{args.dataset}_{command}/{args.dataset}_{command}_{args.run}_{args.escheme}_PIXEL1_results.csv', 'w', newline='', encoding='utf-8') as f:
+            with open(f'../data/results/{args.dataset}_{command}/{args.run}/{args.dataset}_{command}_{args.run}_{args.escheme}_PIXEL1_results.csv', 'w', newline='', encoding='utf-8') as f:
                     writer = csv.DictWriter(f, fieldnames=fieldnames)
                     writer.writeheader()  
                     writer.writerows(data)
