@@ -157,6 +157,27 @@ def generate_table(dataset: str, full_run: int, full_lexi_run: int, generations:
         w.writeheader()
         w.writerows(rows)
 
+def bytask_to_bytask_lexi(dataset: str, base_run: int, lexi_run: int, case_mode: str, escheme: str):
+    data = []
+    fieldnames = ['task', 'accuracy_delta']
+
+    with open(f'data/results/{dataset}_bytask/{dataset}_bytask_{base_run}_results.csv', newline='', encoding='utf-8') as f:
+        base_results = list(csv.DictReader(f))
+
+    with open(f'data/results/{dataset}_bytask_lexi/{lexi_run}/{dataset}_bytask_lexi_{lexi_run}_{escheme}_{case_mode}_results.csv', newline='', encoding='utf-8') as f:
+        lexi_results = list(csv.DictReader(f))
+
+    for (base_row, lexi_row) in zip(base_results, lexi_results):
+        data.append({
+            'task': base_row['task'],
+            'accuracy_delta': float(lexi_row['final_pixel_accuracy']) - float(base_row['final_pixel_accuracy'])
+        })
+    
+    with open(f'data/results/{dataset}_comparisons/bytask_to_bytask_lexi/{base_run}_to_{lexi_run}_({escheme}_{case_mode}).csv', 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(data)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -184,6 +205,12 @@ if __name__ == '__main__':
     table_parser.add_argument('--fulllexirun', type=int, required=True, help='Run number of lexi model')
     table_parser.add_argument('--gens', type=int, required=True, help='Number of generations lexi model was evolved')
 
+    bytask_to_bytask_lexi_parser = subparsers.add_parser('bytask_bytask_lexi', parents=[common])
+    bytask_to_bytask_lexi_parser.add_argument('--baserun', type=int, help='Run number of base model')
+    bytask_to_bytask_lexi_parser.add_argument('--lexirun', type=int, help='Run number of lexi model')
+    bytask_to_bytask_lexi_parser.add_argument('--escheme', type=str, help='Epsilon selection scheme')
+    bytask_to_bytask_lexi_parser.add_argument('--casemode', type=str, help='What is used as test cases during lexicase selection')
+
     args = parser.parse_args()
 
     if args.command == 'full_full_lexi':
@@ -210,4 +237,12 @@ if __name__ == '__main__':
             full_run=args.fullrun,
             full_lexi_run=args.fulllexirun,
             generations=args.gens
+        )
+    elif args.command == 'bytask_bytask_lexi':
+        bytask_to_bytask_lexi(
+            dataset=args.dataset,
+            base_run=args.baserun,
+            lexi_run=args.lexirun,
+            case_mode=args.casemode,
+            escheme=args.escheme
         )
