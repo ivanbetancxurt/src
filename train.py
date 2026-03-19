@@ -157,22 +157,7 @@ def main():
 
         epochs_for_ckpt = 3 if args.test else args.epochs * (args.pop + 1)
 
-        if args.casemode == 'ex':
-            if args.escheme == 'mad':
-                save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_MAD_EX).pth'
-            elif args.escheme == 'bh':
-                save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_BH_EX).pth'
-            else:
-                save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_{args.epsilon}e_EX).pth'
-        elif args.casemode == 'pixel1':
-            if args.escheme == 'mad':
-                save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_MAD_PIXEL1).pth'
-            elif args.escheme == 'bh':
-                save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_BH_PIXEL1).pth'
-            elif args.escheme == 'none':
-                save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_NONE_PIXEL1).pth'
-            else:
-                save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_{args.epsilon}e_PIXEL1).pth'
+        save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_{args.escheme}_{args.casemode}).pth'
 
         th.save({
             'model': model.state_dict(),
