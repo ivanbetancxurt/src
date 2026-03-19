@@ -376,7 +376,6 @@ class NCA(th.nn.Module):
                             scores.append(score)
                         
                         best = max(scores)
-
                         pool = [child_idx for (child_idx, score) in zip(pool, scores) if score == best]
 
                     print(f'==> {len(pool)} remaining...')
@@ -453,7 +452,7 @@ class NCA(th.nn.Module):
         self, 
         data_directory: str,
         epsilon: float,
-        case_mode: str, # 'ex' | 'pixel1'
+        case_mode: str, # 'ex' | 'pixel1' | 'pixel2'
         epsilon_scheme: str = 'fixed',  # 'fixed' | 'mad' | 'bh' | 'none' (only when case mode is pixel)
         use_avg_loss: bool = False,
         epochs: int = 200, #! ATTENTION
@@ -657,10 +656,20 @@ class NCA(th.nn.Module):
                         else:
                             pool = [child_idx for (child_idx, score) in zip(pool, scores) if score <= best + epsilon]
                     elif case_mode == 'pixel2':
+                        for child_idx in pool:
+                            score = 0
+                            pred = children_states[child_idx][0, r, c].item()
+                            score += int(pred == target)
 
-                        #todo: implement pixel2 case
-
-                        pass
+                            if x[r, c] == target: # if the NCA should not have changed this pixel...
+                                score += int(pred == x[r, c])
+                            else: # but if it should have changed it...
+                                score += int(pred != x[r, c])
+                            
+                            scores.append(score)
+                        
+                        best = max(scores)
+                        pool = [child_idx for (child_idx, score) in zip(pool, scores) if score == best]
 
                     print_stats(scores)
 
