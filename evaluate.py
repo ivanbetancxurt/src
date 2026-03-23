@@ -79,7 +79,7 @@ def main():
                     writer.writeheader()  
                     writer.writerows(data)
         elif command == 'bytask_lexi':
-            with open(f'../data/results/{args.dataset}_{command}/{args.run}/{args.dataset}_{command}_{args.run}_{args.escheme}_PIXEL1_results.csv', 'w', newline='', encoding='utf-8') as f:
+            with open(f'../data/results/{args.dataset}_{command}/{args.run}/{args.dataset}_{command}_{args.run}_{args.escheme}_{args.casemode}_results.csv', 'w', newline='', encoding='utf-8') as f:
                     writer = csv.DictWriter(f, fieldnames=fieldnames)
                     writer.writeheader()  
                     writer.writerows(data)
@@ -210,6 +210,8 @@ def main():
                 ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_{args.epsilon}e_PIXEL1).pth', map_location=th.device(device))
             elif args.escheme == 'none':
                 ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_NONE_PIXEL1).pth', map_location=th.device(device))
+        elif args.casemode == 'pixel2':
+            ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexi_{args.run}_({args.gens}g_none_pixel2).pth', map_location=th.device(device))
                 
         configs = ckpt['configs']
         state = ckpt['model']
