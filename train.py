@@ -43,6 +43,17 @@ def main():
     full_lexi.add_argument('--lrmin', default=0, type=float, help='Minimum learning rate for SGD (Lexi)')
     full_lexi.add_argument('--test', action='store_true', help='Testing mode. Runs for 3 epochs.')
 
+    gls_finetune = subparsers.add_parser('gls_finetune', parents=[common], help='Fine-tune pretrained NCA with GLS')
+    gls_finetune.add_argument('--task', type=int, required=True, help='Task being trained on')
+    gls_finetune.add_argument('--pop', default=4, type=int, help='Population size')
+    gls_finetune.add_argument('--epsilon', default=0, type=float, help='Survival threshold')
+    gls_finetune.add_argument('--casemode', required=True, type=str, help='Pixel scoring scheme')
+    gls_finetune.add_argument('--subfactor', type=int, default=2, help='Used to determine how many examples are sampled for subset_gd')
+    gls_finetune.add_argument('--escheme', type=str, required=True, help='Epsilon selection scheme')
+    gls_finetune.add_argument('--lrmax', default=0.01, type=float, help='Max learning rate for SGD (Lexi)')
+    gls_finetune.add_argument('--lrmin', default=0, type=float, help='Minimum learning rate for SGD (Lexi)')
+    gls_finetune.add_argument('--baserun', type=int, default=1, help='Run number of the pretrained baseline checkpoint')
+
     args = parser.parse_args()
 
     device = th.device('cuda' if th.cuda.is_available() else 'cpu')
@@ -174,6 +185,48 @@ def main():
                 'mask_prob_high': args.mphigh
             },
             'epochs': epochs_for_ckpt,
+            'device': str(device)
+        }, save_dir)
+
+    elif args.command == 'gls_finetune':
+        if args.run is None:
+            parser.error('--run is required for bytask checkpoints')
+
+        ckpt = th.load(f'../checkpoints/{args.dataset}_bytask/01/{args.dataset}_bytask{args.task}_01.pth', map_location=device)
+        model.load_state_dict(ckpt['model'])
+
+        losses = model.fit_by_task(
+            task_path=f'../data/{args.dataset}/training/task_{args.task}.json',
+            epsilon=args.epsilon,
+            case_mode=args.casemode,
+            lexi=True,
+            epochs=args.epochs,
+            epsilon_scheme=args.escheme,
+            steps=args.steps,
+            trials=args.trials,
+            pop_size=args.pop,
+            subset_factor=args.subfactor,
+            adamw_learning_rate=args.lr,
+            lr_max=args.lrmax,
+            lr_min=args.lrmin,
+            mask_prob_low=args.mplow,
+            mask_prob_high=args.mphigh
+        )
+
+        save_dir = f'../checkpoints/{args.dataset}_bytask_lexi/{args.run}/{args.name}_{args.escheme}_{args.casemode}_lrmax={args.lrmax}.pth'
+        
+        th.save({
+            'model': model.state_dict(),
+            'configs': {
+                'n_hidden_channels': model.n_hidden_channels,
+                'temperature': model.temperature,
+                'steps': args.steps,
+                'trials': args.trials,
+                'learning_rate': args.lr,
+                'mask_prob_low': args.mplow,
+                'mask_prob_high': args.mphigh
+            },
+            'epochs': args.epochs,
             'device': str(device)
         }, save_dir)
 
