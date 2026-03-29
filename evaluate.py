@@ -20,7 +20,7 @@ def main():
     by_task_lexi = subparsers.add_parser('bytask_lexi', parents=[common], help='Trained NCA on one task with lexi')
     by_task_lexi.add_argument('--casemode', type=str, required=True, help='What is used as test cases during lexicase selection')
     by_task_lexi.add_argument('--escheme', type=str, required=True, help='Epsilon selection scheme')
-
+    by_task_lexi.add_argument('--ft', action='store_true', help='Was GLS used for finetuning')
 
     full = subparsers.add_parser('full', parents=[common], help='Trained NCA on all tasks')
     full_sub = full.add_subparsers(dest='variant')
@@ -79,10 +79,17 @@ def main():
                     writer.writeheader()  
                     writer.writerows(data)
         elif command == 'bytask_lexi':
-            with open(f'../data/results/{args.dataset}_{command}/{args.run}/{args.dataset}_{command}_{args.run}_{args.escheme}_{args.casemode}_results.csv', 'w', newline='', encoding='utf-8') as f:
+            if args.ft:
+                with open(f'../data/results/{args.dataset}_{command}/{args.run}/{args.dataset}_{command}FT_{args.run}_{args.escheme}_{args.casemode}_results.csv', 'w', newline='', encoding='utf-8') as f:
                     writer = csv.DictWriter(f, fieldnames=fieldnames)
                     writer.writeheader()  
                     writer.writerows(data)
+            else:
+                with open(f'../data/results/{args.dataset}_{command}/{args.run}/{args.dataset}_{command}_{args.run}_{args.escheme}_{args.casemode}_results.csv', 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.DictWriter(f, fieldnames=fieldnames)
+                    writer.writeheader()  
+                    writer.writerows(data)
+
         else:
             #? this code is retarded
             if args.casemode == 'ex':
@@ -171,11 +178,18 @@ def main():
         record(args.command)
     elif args.command == 'bytask_lexi':
         for n in range(1, num_tasks + 1):
-            ckpt = th.load(f'../checkpoints/{args.dataset}_bytask_lexi/{args.run}/{args.dataset}_bytask{n}_lexi_{args.run}_{args.escheme}_{args.casemode}.pth', map_location=th.device(device))
-            configs = ckpt['configs']
-            state = ckpt['model']
-            model.load_state_dict(state)
-            model.to(device)
+            if args.ft:
+                ckpt = th.load(f'../checkpoints/{args.dataset}_bytask_lexi/{args.run}/{args.dataset}_bytask{n}_lexiFT_{args.run}_{args.escheme}_{args.casemode}_lrmax=0.01.pth', map_location=th.device(device))
+                configs = ckpt['configs']
+                state = ckpt['model']
+                model.load_state_dict(state)
+                model.to(device)
+            else:
+                ckpt = th.load(f'../checkpoints/{args.dataset}_bytask_lexi/{args.run}/{args.dataset}_bytask{n}_lexi_{args.run}_{args.escheme}_{args.casemode}.pth', map_location=th.device(device))
+                configs = ckpt['configs']
+                state = ckpt['model']
+                model.load_state_dict(state)
+                model.to(device)
 
             evaluate(model=model, configs=configs, task_num=n, dataset=args.dataset)
 

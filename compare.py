@@ -157,7 +157,7 @@ def generate_table(dataset: str, full_run: int, full_lexi_run: int, generations:
         w.writeheader()
         w.writerows(rows)
 
-def bytask_to_bytask_lexi(dataset: str, base_run: int, lexi_run: int, case_mode: str, escheme: str):
+def bytask_to_bytask_lexi(dataset: str, base_run: int, lexi_run: int, case_mode: str, escheme: str, finetuner: bool):
     data = []
     fieldnames = ['task', 'accuracy_delta']
 
@@ -210,6 +210,7 @@ if __name__ == '__main__':
     bytask_to_bytask_lexi_parser.add_argument('--lexirun', type=int, help='Run number of lexi model')
     bytask_to_bytask_lexi_parser.add_argument('--escheme', type=str, help='Epsilon selection scheme')
     bytask_to_bytask_lexi_parser.add_argument('--casemode', type=str, help='What is used as test cases during lexicase selection')
+    bytask_to_bytask_lexi_parser.add_argument('--ft', action='store_true', help='Was GLS used for finetuning')
 
     args = parser.parse_args()
 
@@ -244,5 +245,6 @@ if __name__ == '__main__':
             base_run=args.baserun,
             lexi_run=args.lexirun,
             case_mode=args.casemode,
-            escheme=args.escheme
+            escheme=args.escheme,
+            finetuner=args.ft
         )

@@ -1,5 +1,5 @@
 #!/bin/sh
-#SBATCH --job-name=eval_arc1_full_lexi_PIXEL2
+#SBATCH --job-name=eval_arc1_bytask_lexiFT
 #SBATCH --partition=gpu-a5000-q
 #SBATCH --gres=gpu:a5000:1
 #SBATCH --cpus-per-task=8
@@ -16,4 +16,8 @@ module load pytorch-extra-py39-cuda11.8-gcc11
 
 mkdir -p logs/eval
 
-python3 ../evaluate.py full_lexi --dataset "arc1" --run 5 --casemode "pixel2" --escheme "none" --gens 1000
+python3 ../evaluate.py bytask_lexi --dataset "arc1" --run 2 --casemode "pixel2" --escheme "none" --ft
+python3 ../evaluate.py bytask_lexi --dataset "arc1" --run 2 --casemode "pixel1" --escheme "fixed" --ft
+python3 ../evaluate.py bytask_lexi --dataset "arc1" --run 2 --casemode "pixel1" --escheme "bh" --ft
+python3 ../evaluate.py bytask_lexi --dataset "arc1" --run 2 --casemode "pixel1" --escheme "mad" --ft
+python3 ../evaluate.py bytask_lexi --dataset "arc1" --run 2 --casemode "pixel1" --escheme "none" --ft

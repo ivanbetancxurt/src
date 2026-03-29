@@ -52,7 +52,6 @@ def main():
     gls_finetune.add_argument('--escheme', type=str, required=True, help='Epsilon selection scheme')
     gls_finetune.add_argument('--lrmax', default=0.01, type=float, help='Max learning rate for SGD (Lexi)')
     gls_finetune.add_argument('--lrmin', default=0, type=float, help='Minimum learning rate for SGD (Lexi)')
-    gls_finetune.add_argument('--baserun', type=int, default=1, help='Run number of the pretrained baseline checkpoint')
 
     args = parser.parse_args()
 
