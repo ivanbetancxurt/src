@@ -6,8 +6,8 @@
 #SBATCH --ntasks=1
 #SBATCH --mem=8G
 #SBATCH --time=07-00:00:00
-#SBATCH --output=logs/train/%x-%A_%a.out
-#SBATCH --error=logs/train/%x-%A_%a.err
+#SBATCH --output=logs/train/%x-%j.out
+#SBATCH --error=logs/train/%x-%j.err
 
 #* CALL THIS FROM slurm/
 
