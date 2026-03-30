@@ -44,7 +44,7 @@ def main():
     full_lexi.add_argument('--test', action='store_true', help='Testing mode. Runs for 3 epochs.')
 
     gls_finetune = subparsers.add_parser('gls_finetune', parents=[common], help='Fine-tune pretrained NCA with GLS')
-    gls_finetune.add_argument('--task', type=int, required=True, help='Task being trained on')
+    gls_finetune.add_argument('--task', type=int, help='Task being trained on')
     gls_finetune.add_argument('--pop', default=4, type=int, help='Population size')
     gls_finetune.add_argument('--epsilon', default=0, type=float, help='Survival threshold')
     gls_finetune.add_argument('--casemode', required=True, type=str, help='Pixel scoring scheme')
@@ -52,6 +52,7 @@ def main():
     gls_finetune.add_argument('--escheme', type=str, required=True, help='Epsilon selection scheme')
     gls_finetune.add_argument('--lrmax', default=0.01, type=float, help='Max learning rate for SGD (Lexi)')
     gls_finetune.add_argument('--lrmin', default=0, type=float, help='Minimum learning rate for SGD (Lexi)')
+    gls_finetune.add_argument('--full', action='store_true', required=True, help='Finetune the full model, not bytask')
 
     args = parser.parse_args()
 
@@ -191,28 +192,50 @@ def main():
         if args.run is None:
             parser.error('--run is required for bytask checkpoints')
 
-        ckpt = th.load(f'../checkpoints/{args.dataset}_bytask/01/{args.dataset}_bytask{args.task}_01.pth', map_location=device)
+        if args.full:
+            ckpt = th.load(f'../checkpoints/{args.dataset}_full/{args.dataset}_full_1.pth', map_location=device)
+        else:
+            ckpt = th.load(f'../checkpoints/{args.dataset}_bytask/01/{args.dataset}_bytask{args.task}_01.pth', map_location=device)
+
         model.load_state_dict(ckpt['model'])
 
-        losses = model.fit_by_task(
-            task_path=f'../data/{args.dataset}/training/task_{args.task}.json',
-            epsilon=args.epsilon,
-            case_mode=args.casemode,
-            lexi=True,
-            epochs=args.epochs,
-            epsilon_scheme=args.escheme,
-            steps=args.steps,
-            trials=args.trials,
-            pop_size=args.pop,
-            subset_factor=args.subfactor,
-            adamw_learning_rate=args.lr,
-            lr_max=args.lrmax,
-            lr_min=args.lrmin,
-            mask_prob_low=args.mplow,
-            mask_prob_high=args.mphigh
-        )
+        if args.full:
+            losses = model.lexi_fit(
+                data_directory=f'../data/{args.dataset}/training',
+                epsilon=args.epsilon,
+                case_mode=args.casemode,
+                epsilon_scheme=args.escheme,
+                epochs=args.epochs,
+                steps=args.steps,
+                trials=args.trials,
+                lr_max=args.lrmax,
+                lr_min=args.lrmin,
+                mask_prob_low=args.mplow,
+                mask_prob_high=args.mphigh,
+                pop_size=args.pop,
+            )
 
-        save_dir = f'../checkpoints/{args.dataset}_bytask_lexi/{args.run}/{args.name}_{args.escheme}_{args.casemode}_lrmax={args.lrmax}.pth'
+            save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.run}/{args.name}_{args.escheme}_{args.casemode}_lrmax={args.lrmax}.pth'
+        else:
+            losses = model.fit_by_task(
+                task_path=f'../data/{args.dataset}/training/task_{args.task}.json',
+                epsilon=args.epsilon,
+                case_mode=args.casemode,
+                lexi=True,
+                epochs=args.epochs,
+                epsilon_scheme=args.escheme,
+                steps=args.steps,
+                trials=args.trials,
+                pop_size=args.pop,
+                subset_factor=args.subfactor,
+                adamw_learning_rate=args.lr,
+                lr_max=args.lrmax,
+                lr_min=args.lrmin,
+                mask_prob_low=args.mplow,
+                mask_prob_high=args.mphigh
+            )
+
+            save_dir = f'../checkpoints/{args.dataset}_bytask_lexi/{args.run}/{args.name}_{args.escheme}_{args.casemode}_lrmax={args.lrmax}.pth'
         
         th.save({
             'model': model.state_dict(),

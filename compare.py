@@ -164,8 +164,12 @@ def bytask_to_bytask_lexi(dataset: str, base_run: int, lexi_run: int, case_mode:
     with open(f'data/results/{dataset}_bytask/{dataset}_bytask_{base_run}_results.csv', newline='', encoding='utf-8') as f:
         base_results = list(csv.DictReader(f))
 
-    with open(f'data/results/{dataset}_bytask_lexi/{lexi_run}/{dataset}_bytask_lexi_{lexi_run}_{escheme}_{case_mode}_results.csv', newline='', encoding='utf-8') as f:
-        lexi_results = list(csv.DictReader(f))
+    if finetuner:
+        with open(f'data/results/{dataset}_bytask_lexi/{lexi_run}/{dataset}_bytask_lexiFT_{lexi_run}_{escheme}_{case_mode}_results.csv', newline='', encoding='utf-8') as f:
+            lexi_results = list(csv.DictReader(f))
+    else:
+        with open(f'data/results/{dataset}_bytask_lexi/{lexi_run}/{dataset}_bytask_lexi_{lexi_run}_{escheme}_{case_mode}_results.csv', newline='', encoding='utf-8') as f:
+            lexi_results = list(csv.DictReader(f))
 
     for (base_row, lexi_row) in zip(base_results, lexi_results):
         data.append({

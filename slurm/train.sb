@@ -1,6 +1,5 @@
 #!/bin/sh
-#SBATCH --job-name=gls_finetune
-#SBATCH --array=1-172
+#SBATCH --job-name=arc1_full_lexiFT_1
 #SBATCH --cpus-per-task=1
 #SBATCH --partition=gpu-a5000-q
 #SBATCH --gres=gpu:a5000:1
@@ -21,17 +20,4 @@ mkdir -p logs/train
 TASK=$SLURM_ARRAY_TASK_ID
 NAME="arc1_bytask${TASK}_lexiFT_2"
 
-echo "========== TASK $TASK / 172: none pixel1 =========="
-python3 ../train.py gls_finetune --name "$NAME" --dataset "arc1" --task $TASK --epochs 200 --casemode "pixel1" --escheme "none" --run 2 --lrmax 0.01
-
-echo "========== TASK $TASK / 172: fixed 0.4 pixel1 =========="
-python3 ../train.py gls_finetune --name "$NAME" --dataset "arc1" --task $TASK --epochs 200 --casemode "pixel1" --escheme "fixed" --epsilon 0.4 --run 2 --lrmax 0.01
-
-echo "========== TASK $TASK / 172: mad pixel1 =========="
-python3 ../train.py gls_finetune --name "$NAME" --dataset "arc1" --task $TASK --epochs 200 --casemode "pixel1" --escheme "mad" --run 2 --lrmax 0.01
-
-echo "========== TASK $TASK / 172: bh pixel1 =========="
-python3 ../train.py gls_finetune --name "$NAME" --dataset "arc1" --task $TASK --epochs 200 --casemode "pixel1" --escheme "bh" --run 2 --lrmax 0.01
-
-echo "========== TASK $TASK / 172: none pixel2 =========="
-python3 ../train.py gls_finetune --name "$NAME" --dataset "arc1" --task $TASK --epochs 200 --casemode "pixel2" --escheme "none" --run 2 --lrmax 0.01
+python3 ../train.py gls_finetune --name "$NAME" --dataset "arc1" --epochs 40 --casemode "ex" --escheme "mad" --run 1 --lrmax 0.01 --full
