@@ -1,8 +1,8 @@
 #!/bin/sh
 #SBATCH --job-name=arc1_full_lexiFT_1
 #SBATCH --cpus-per-task=1
-#SBATCH --partition=gpu-a5000-q
-#SBATCH --gres=gpu:a5000:1
+#SBATCH --partition=gpu-a100-q
+#SBATCH --gres=gpu:a100:1
 #SBATCH --ntasks=1
 #SBATCH --mem=8G
 #SBATCH --time=07-00:00:00
@@ -20,4 +20,4 @@ mkdir -p logs/train
 TASK=$SLURM_ARRAY_TASK_ID
 NAME="arc1_bytask${TASK}_lexiFT_2"
 
-python3 ../train.py gls_finetune --name "$NAME" --dataset "arc1" --epochs 40 --casemode "pixel1" --escheme "none" --run 1 --lrmax 0.01 --full
+python3 ../train.py gls_finetune --name "$NAME" --dataset "arc1" --epochs 40 --casemode "pixel2" --run 1 --lrmax 0.01 --full
