@@ -215,7 +215,7 @@ def main():
                 pop_size=args.pop,
             )
 
-            save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.run}/{args.name}_{args.escheme}_{args.casemode}_lrmax={args.lrmax}.pth'
+            save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_{args.escheme}_{args.casemode}_lrmax={args.lrmax}.pth'
         else:
             losses = model.fit_by_task(
                 task_path=f'../data/{args.dataset}/training/task_{args.task}.json',
