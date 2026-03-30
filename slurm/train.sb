@@ -20,4 +20,4 @@ mkdir -p logs/train
 TASK=$SLURM_ARRAY_TASK_ID
 NAME="arc1_bytask${TASK}_lexiFT_2"
 
-python3 ../train.py gls_finetune --name "$NAME" --dataset "arc1" --epochs 40 --casemode "ex" --escheme "mad" --run 1 --lrmax 0.01 --full
+python3 ../train.py gls_finetune --name "$NAME" --dataset "arc1" --epochs 40 --casemode "ex" --escheme "bh" --run 1 --lrmax 0.01 --full
