@@ -1,10 +1,10 @@
 #!/bin/sh
 #SBATCH --job-name=arc1_full_lexiFT_2_madEX
 #SBATCH --cpus-per-task=1
-#SBATCH --partition=gpu-a100-q
-#SBATCH --gres=gpu:a100:1
+#SBATCH --partition=gpu-a5000-q
+#SBATCH --gres=gpu:a5000:1
 #SBATCH --ntasks=1
-#SBATCH --mem=8G
+#SBATCH --mem=16G
 #SBATCH --time=07-00:00:00
 #SBATCH --output=logs/train/%x-%j.out
 #SBATCH --error=logs/train/%x-%j.err
