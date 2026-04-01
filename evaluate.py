@@ -93,24 +93,28 @@ def main():
 
         else:
             #? this code is retarded
-            if args.casemode == 'ex':
-                if args.escheme == 'mad':
-                    out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_MAD)_results.csv'
-                elif args.escheme == 'bh':
-                    out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_BH)_results.csv'
-                else:
-                    out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_{args.epsilon}e)_results.csv'
-            elif args.casemode == 'pixel1':
-                if args.escheme == 'mad':
-                    out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_MAD_PIXEL1)_results.csv'
-                elif args.escheme == 'bh':
-                    out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_BH_PIXEL1)_results.csv'
-                elif args.escheme == 'fixed':
-                    out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_{args.epsilon}e_PIXEL1)_results.csv'
-                elif args.escheme == 'none':
-                    out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_NONE_PIXEL1)_results.csv'
-            elif args.casemode == 'pixel2':
-                out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_NONE_PIXEL2)_results.csv'
+            if args.ft:
+                out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}FT_{args.run}_{args.escheme}_{args.casemode}_results.csv'
+            else:
+                if args.casemode == 'ex':
+                    if args.escheme == 'mad':
+                        out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_MAD)_results.csv'
+                    elif args.escheme == 'bh':
+                        out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_BH)_results.csv'
+                    else:
+                        out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_{args.epsilon}e)_results.csv'
+                elif args.casemode == 'pixel1':
+                    if args.escheme == 'mad':
+                        out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_MAD_PIXEL1)_results.csv'
+                    elif args.escheme == 'bh':
+                        out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_BH_PIXEL1)_results.csv'
+                    elif args.escheme == 'fixed':
+                        out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_{args.epsilon}e_PIXEL1)_results.csv'
+                    elif args.escheme == 'none':
+                        out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_NONE_PIXEL1)_results.csv'
+                elif args.casemode == 'pixel2':
+                    out = f'../data/results/{args.dataset}_{args.command}/{args.dataset}_{args.command}_{args.run}_({args.gens}g_NONE_PIXEL2)_results.csv'
+
 
             with open(out, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.DictWriter(f, fieldnames=lexi_fieldnames)
