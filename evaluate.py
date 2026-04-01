@@ -212,7 +212,7 @@ def main():
             record(args.command)
     elif args.command == 'full_lexi':
         if args.ft:
-            ckpt = th.load(f'..checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexiFT_{args.run}_{args.escheme}_{args.casemode}_lrmax=0.01', map_location=th.device(device))
+            ckpt = th.load(f'../checkpoints/{args.dataset}_full_lexi/{args.dataset}_full_lexiFT_{args.run}_{args.escheme}_{args.casemode}_lrmax=0.01', map_location=th.device(device))
         else:
             if args.casemode == 'ex':
                 if args.escheme == 'mad':
