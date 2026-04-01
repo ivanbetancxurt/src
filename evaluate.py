@@ -133,6 +133,15 @@ def main():
         y = th.tensor(task['output'])
 
         configs['scored_with_avg'] = False #! QUICK FIXXXXXXXXXXX
+        configs['pop_size'] = 4
+        configs['n_hidden_channels'] = 20
+        configs['temperature'] = 5
+        configs['steps'] = 10
+        configs['trials'] = 128
+        configs['learning_rate_max'] = 0.01
+        configs['learning_rate_min'] = 0
+        configs['mask_prob_low'] = 0.0
+        configs['mask_prob_high'] = 0.75
 
         res = model.evaluate(inputs=x.unsqueeze(0), targets=y.unsqueeze(0), generate_img=generate_img, cell_size=cell_size)
 
