@@ -132,6 +132,8 @@ def main():
         x = th.tensor(task['input'])
         y = th.tensor(task['output'])
 
+        configs['scored_with_avg'] = False #! QUICK FIXXXXXXXXXXX
+
         res = model.evaluate(inputs=x.unsqueeze(0), targets=y.unsqueeze(0), generate_img=generate_img, cell_size=cell_size)
 
         if not generate_img:
