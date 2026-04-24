@@ -53,7 +53,6 @@ def main():
     gls_finetune.add_argument('--lrmax', default=0.01, type=float, help='Max learning rate for SGD (Lexi)')
     gls_finetune.add_argument('--lrmin', default=0, type=float, help='Minimum learning rate for SGD (Lexi)')
     gls_finetune.add_argument('--full', action='store_true', required=True, help='Finetune the full model, not bytask')
-
     args = parser.parse_args()
 
     device = th.device('cuda' if th.cuda.is_available() else 'cpu')
@@ -66,7 +65,7 @@ def main():
         if args.run is None:
             parser.error('--run is required for bytask checkpoints')
 
-        losses = model.fit_by_task(
+        model.fit_by_task(
             task_path=f'../data/{args.dataset}/training/task_{args.task}.json',
             epsilon=args.epsilon,
             case_mode=args.casemode,
@@ -84,13 +83,6 @@ def main():
             mask_prob_high=args.mphigh
         )
 
-        '''
-        with open(f'../data/losses/{args.dataset}_bytask/{args.run}/{args.name}_losses.csv', 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(['epoch', 'loss'])
-            for epoch, loss in enumerate(losses, start=1):
-                writer.writerow([epoch, loss])
-        '''
         if args.lexi:
             save_dir = f'../checkpoints/{args.dataset}_bytask_lexi/{args.run}/{args.name}_{args.escheme}_{args.casemode}.pth'
         else:
@@ -112,7 +104,7 @@ def main():
         }, save_dir)
 
     elif args.command == 'full':
-        losses = model.fit(
+        model.fit(
             data_directory=f'../data/{args.dataset}/training',
             epochs=args.epochs,
             steps=args.steps,
@@ -121,12 +113,6 @@ def main():
             mask_prob_low=args.mplow,
             mask_prob_high=args.mphigh
         )
-
-        with open(f'../data/losses/{args.dataset}_full/{args.name}_losses.csv', 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(['epoch', 'loss'])
-            for epoch, loss in enumerate(losses, start=1):
-                writer.writerow([epoch, loss])
 
         th.save({
             'model': model.state_dict(),
@@ -144,7 +130,7 @@ def main():
         }, f'../checkpoints/{args.dataset}_full/{args.name}.pth')
 
     elif args.command == 'full_lexi':
-        losses = model.lexi_fit(
+        model.lexi_fit(
             data_directory=f'../data/{args.dataset}/training',
             epsilon=args.epsilon,
             case_mode=args.casemode,
@@ -160,16 +146,10 @@ def main():
             one_run_test=args.test
         )
 
-        with open(f'../data/losses/{args.dataset}_full_lexi/{args.name}_losses.csv', 'w', newline='') as f:
-            fieldnames = ['generation', 'child', 'loss']
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(losses)
-
         epochs_for_ckpt = 3 if args.test else args.epochs * (args.pop + 1)
 
-        save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_{args.escheme}_{args.casemode}).pth'
-
+        save_dir = 
+        
         th.save({
             'model': model.state_dict(),
             'configs': {
@@ -186,7 +166,8 @@ def main():
             },
             'epochs': epochs_for_ckpt,
             'device': str(device)
-        }, save_dir)
+        }, f'../checkpoints/{args.dataset}_full_lexi/{args.name}_({epochs_for_ckpt}g_{args.escheme}_{args.casemode}).pth')
+
 
     elif args.command == 'gls_finetune':
         if args.run is None:
@@ -200,7 +181,7 @@ def main():
         model.load_state_dict(ckpt['model'])
 
         if args.full:
-            losses = model.lexi_fit(
+            model.lexi_fit(
                 data_directory=f'../data/{args.dataset}/training',
                 epsilon=args.epsilon,
                 case_mode=args.casemode,
@@ -217,7 +198,7 @@ def main():
 
             save_dir = f'../checkpoints/{args.dataset}_full_lexi/{args.name}_{args.escheme}_{args.casemode}_lrmax={args.lrmax}.pth'
         else:
-            losses = model.fit_by_task(
+            model.fit_by_task(
                 task_path=f'../data/{args.dataset}/training/task_{args.task}.json',
                 epsilon=args.epsilon,
                 case_mode=args.casemode,
