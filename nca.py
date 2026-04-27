@@ -14,7 +14,7 @@ class PerPixelLayerNorm(th.nn.Module):
         super().__init__()
         self.ln = th.nn.LayerNorm(normalized_shape=n_channels)
     
-    def forward(self, x: th.FloatTensor):
+    def forward(self, x: th.Tensor):
         x = x.permute(0, 2, 3, 1)
         x = self.ln(x)
         return x.permute(0, 3, 1, 2)
@@ -31,7 +31,7 @@ class NCA(th.nn.Module):
         self.linear2 = th.nn.Conv2d(in_channels=self.n_channels, out_channels=self.n_channels, kernel_size=1)
         self.temperature = temperature
 
-    def encode(self, grids: th.LongTensor) -> th.FloatTensor:
+    def encode(self, grids: th.Tensor) -> th.Tensor:
         '''
             Converts ARC grids (2D tensors of values 0-9) into model-readable format (N x (10 + hidden channels) x H x W).
         '''
@@ -40,13 +40,13 @@ class NCA(th.nn.Module):
         encoded_grids = th.cat((one_hot_grids, hidden_channels), dim=3)
         return encoded_grids.permute(0, 3, 1, 2)
 
-    def decode(self, grid: th.FloatTensor) -> th.LongTensor:
+    def decode(self, grid: th.Tensor) -> th.Tensor:
         '''
             Converts an intermediary grid back into ARC format (N x H x W).
         '''
         return grid[:, :10].argmax(dim=1)
 
-    def forward(self, grids: th.FloatTensor) -> th.FloatTensor:
+    def forward(self, grids: th.Tensor) -> th.Tensor:
         '''
             Single forward pass of rules on a batch of grids, returning the updated states. #! Must encode first if not running via rollout().
         '''
@@ -65,7 +65,7 @@ class NCA(th.nn.Module):
 
         return grids 
 
-    def async_update(self, prev_state: th.FloatTensor, proposed_state: th.FloatTensor, mask_prob) -> th.FloatTensor:
+    def async_update(self, prev_state: th.Tensor, proposed_state: th.Tensor, mask_prob) -> th.Tensor:
         '''
             Mask the new state, with probability mask_prob, by interpolating its cells with the those of the previous state by a random stength.
         '''
@@ -74,7 +74,7 @@ class NCA(th.nn.Module):
         M = mask.float() * strengths
         return ((1 - M) * proposed_state) + (M * prev_state)
 
-    def rollout(self, state: th.FloatTensor, steps: int, mask_prob_low: float, mask_prob_high: float, force_sync: bool) -> list[th.FloatTensor]:
+    def rollout(self, state: th.Tensor, steps: int, mask_prob_low: float, mask_prob_high: float, force_sync: bool) -> list[th.Tensor]:
         '''
             Applies 'steps' forward passes to the inputs and returns all the intermediate states.
         '''
@@ -89,7 +89,7 @@ class NCA(th.nn.Module):
             states.append(state)
         return states
 
-    def per_pixel_log_loss(self, states: list[th.FloatTensor], target: th.LongTensor) -> (th.FloatTensor, float):
+    def per_pixel_log_loss(self, states: list[th.Tensor], target: th.Tensor) -> (th.Tensor, float):
         '''
             Compute CE loss per step and overall average.
         '''
@@ -162,7 +162,7 @@ class NCA(th.nn.Module):
 
         return total_loss / trials
 
-    def calc_steps(self, steps: int, grid: th.FloatTensor, max_grid_area: int) -> int:
+    def calc_steps(self, steps: int, grid: th.Tensor, max_grid_area: int) -> int:
         '''
             For training by task, scale the allowed number of steps by the area of the grid.
         '''
@@ -724,7 +724,7 @@ class NCA(th.nn.Module):
             
 
     @th.no_grad()
-    def evaluate(self, inputs: th.LongTensor, targets: th.LongTensor, steps: int = 10, generate_img: bool = False, cell_size: int = 24):
+    def evaluate(self, inputs: th.Tensor, targets: th.Tensor, steps: int = 10, generate_img: bool = False, cell_size: int = 24):
         '''
             Evaluate learned rules on new data.
         '''
